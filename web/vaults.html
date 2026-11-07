@@ -1,0 +1,67 @@
+{{/* One gradient picker: two hue sliders, a strip showing the result, and a
+     few ready-made ones. app.js keeps the strip, and the page itself when it
+     is this vault, in step with the sliders. */}}
+{{define "gradient"}}
+<div class="gradient">
+  <span class="gradient-strip" aria-hidden="true"></span>
+  <label><span>From</span><input type="range" min="0" max="359" name="hue-{{.Key}}" value="{{.Row.Hue}}" data-g="1"></label>
+  <label><span>To</span><input type="range" min="0" max="359" name="hue2-{{.Key}}" value="{{.Row.Hue2}}" data-g="2"></label>
+  <div class="presets">
+    {{range presets}}<button type="button" style="--g1:{{index . 0}};--g2:{{index . 1}}" data-preset="{{index . 0}},{{index . 1}}" title="Use this gradient"></button>{{end}}
+  </div>
+</div>
+{{end}}
+
+{{/* A vault's folder: typed, or picked with Browse…, which app.js fills
+     from /browse. */}}
+{{define "folderfield"}}
+<div class="field folderfield">
+  <label for="dir-{{.Key}}">Folder</label>
+  <div class="folderpick">
+    <input id="dir-{{.Key}}" name="dir-{{.Key}}" value="{{.Row.Dir}}"{{if ne .Key "new"}} required{{end}} placeholder="{{if eq .Key "new"}}~/somewhere/notes (made if missing){{else}}~/notes{{end}}" spellcheck="false">
+    <button class="btn ghost" type="button" data-browse>Browse…</button>
+  </div>
+  <div class="picker" hidden></div>
+</div>
+{{end}}
+
+{{define "main"}}{{with .Settings}}
+<form class="vaults-page" method="post" action="/vaults">
+  {{/* Enter in a field saves, rather than pressing the first ↑. */}}
+  <button class="default-submit" type="submit" tabindex="-1" aria-hidden="true">Save</button>
+  <header>
+    <h1>Vaults</h1>
+    <p class="muted">Each vault is a folder of notes. Taking one off this list leaves its folder and notes as they are.</p>
+  </header>
+  {{if .Error}}<div class="alert">{{.Error}}</div>{{end}}
+  {{if .Saved}}<p class="saved">Saved.</p>{{end}}
+  <input type="hidden" name="count" value="{{len .Rows}}">
+
+  {{range $i, $r := .Rows}}
+  <fieldset class="vaultrow" style="--g1:{{.Hue}};--g2:{{.Hue2}}" data-orig="{{.Orig}}">
+    <input type="hidden" name="orig-{{$i}}" value="{{.Orig}}">
+    <div class="vaultrow-head">
+      <span class="vdot"></span>
+      <strong>{{.Name}}</strong>
+      <span class="muted">{{.Notes}} notes</span>
+      <span class="spacer"></span>
+      <button class="btn ghost" type="submit" name="move" value="up-{{$i}}" title="Move up"{{if eq $i 0}} disabled{{end}}>↑</button>
+      <button class="btn ghost" type="submit" name="move" value="down-{{$i}}" title="Move down"{{if eq (inc $i) (len $.Settings.Rows)}} disabled{{end}}>↓</button>
+      <label class="remove"><input type="checkbox" name="remove-{{$i}}"{{if .Remove}} checked{{end}}> Remove</label>
+    </div>
+    <label class="field"><span>Name</span><input name="name-{{$i}}" value="{{.Name}}" placeholder="the folder's name" spellcheck="false"></label>
+    {{template "folderfield" (row (print $i) .)}}
+    {{template "gradient" (row (print $i) .)}}
+  </fieldset>
+  {{end}}
+
+  <fieldset class="vaultrow new" style="--g1:{{.New.Hue}};--g2:{{.New.Hue2}}">
+    <div class="vaultrow-head"><span class="vdot"></span><strong>Add a vault</strong></div>
+    <label class="field"><span>Name</span><input name="name-new" value="{{.New.Name}}" placeholder="the folder's name" spellcheck="false"></label>
+    {{template "folderfield" (row "new" .New)}}
+    {{template "gradient" (row "new" .New)}}
+  </fieldset>
+
+  <div class="actions"><button class="btn primary" type="submit">Save</button></div>
+</form>
+{{end}}{{end}}

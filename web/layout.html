@@ -1,0 +1,113 @@
+{{/* On the list page the box sits on top of the list; everywhere else it
+     sits on top of the page and its results open in a dropdown. */}}
+{{define "searchbox"}}
+<form class="search{{if .Open}} folded{{end}}" action="/" method="get" role="search">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+  <input id="q" name="q" type="search" value="{{.Q.Raw}}" placeholder="Search, or type a title and press Enter to create   #tag  in:folder  -not" autocomplete="off" spellcheck="false"{{if .IsList}} autofocus{{end}}>
+  <kbd>Ctrl K</kbd>
+  {{if not .IsList}}<div class="palette" id="palette" hidden></div>{{end}}
+</form>
+{{end}}
+
+{{define "layout"}}<!doctype html>
+<html lang="en" style="--hue-accent:{{.Vault.Hue}};--hue-accent2:{{.Vault.Hue2}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}}</title>
+<link rel="stylesheet" href="/static/style.css">
+<link rel="icon" href="/static/icon.svg">
+<link rel="manifest" href="/static/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+<meta name="theme-color" content="#111214">
+<script>try{const d=document.documentElement,t=localStorage.getItem("theme"),i=localStorage.getItem("img"),l=localStorage.getItem("list");if(t)d.dataset.theme=t;if(i)d.dataset.img=i;if(l)d.dataset.list=l;if(localStorage.getItem("sidebar")==="folded")d.dataset.side="folded"}catch(e){}</script>
+</head>
+<body{{if .Open}} class="focus dim"{{end}} data-vault="{{.Vault.Name}}" data-label="{{.Vault.Label}}" data-newdir="{{with .Note}}{{.Dir}}{{end}}">
+<div class="shell">
+  <button class="sideopen" type="button" id="sideopen" title="Show the sidebar (Alt B)" aria-label="Show the sidebar">▶</button>
+  <aside class="side">
+    <header class="side-head">
+      <button class="sidefold" type="button" id="sidefold" title="Hide the sidebar (Alt B)" aria-label="Hide the sidebar">◀</button>
+      <a class="brand" href="/" title="gonotes {{.Version}}"><img src="/static/icon.svg" alt="">notes</a>
+      {{if .Tags}}<button class="btn ghost foldersbtn" type="button" data-panel="tags" aria-expanded="false" aria-controls="side-body" title="Tags"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 7 20M17 4l-2 16M4.5 9h16M3.5 15h16"/></svg></button>{{end}}
+      <button class="btn ghost foldersbtn" type="button" data-panel="folders" aria-expanded="false" aria-controls="side-body" title="Folders"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4l2 2.5h9A1.5 1.5 0 0 1 21 9v8.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"/></svg></button>
+      {{if gt (len .Vaults) 1}}
+      <div class="vaults">
+        <button class="btn ghost" type="button" id="vault" title="Switch vault (Alt V)" aria-haspopup="menu" aria-expanded="false"><i class="vdot" style="--g1:{{.Vault.Hue}};--g2:{{.Vault.Hue2}}"></i><b>{{.Vault.Name}}</b> <span aria-hidden="true">▾</span></button>
+        <ul class="vaultmenu" id="vaultmenu" role="menu" hidden>
+          {{range $i, $v := .Vaults}}
+          <li role="none"><a role="menuitem" data-vault href="/vault/{{.Name}}"{{if eq .Name $.Vault.Name}} class="on" aria-current="true"{{end}}><kbd class="alt">Alt {{inc $i}}</kbd><i class="vdot" style="--g1:{{.Hue}};--g2:{{.Hue2}}"></i>{{.Name}} <span>{{.Count}}</span></a></li>
+          {{end}}
+          <li role="none" class="sep"><a role="menuitem" href="/vaults">Edit vaults…</a></li>
+          <li role="none" class="hint"><kbd class="alt">Alt V</kbd> opens this menu from anywhere</li>
+        </ul>
+      </div>
+      {{end}}
+    </header>
+    <div class="side-body" id="side-body">
+    <section data-section="folders">
+      <h2>Folders <button class="foldall" type="button" id="foldall" title="Close all folders" hidden></button><button class="addfolder" type="button" id="addfolder" title="New folder">+</button></h2>
+      <p class="kbdhint"><kbd>↑↓</kbd> pick · <kbd>Enter</kbd> open · <kbd>m</kbd> move note here · <kbd>→</kbd> <kbd>←</kbd> open, close · <kbd>Esc</kbd> back</p>
+      <ul class="facets">
+        <li><a data-tok="" href="/"{{if and .IsList (eq .Q.Raw "")}} class="on"{{end}}>All notes <span>{{.Total}}</span></a></li>
+        {{range .Dirs}}{{$tok := print "in:" .Name}}
+        <li style="--d:{{depth .Name}}" data-dir="{{.Name}}"{{if $.Vault.IsExcluded .Name}} class="excluded" title="Left out of searches"{{end}}><a data-tok="{{$tok}}" data-dir="{{.Name}}" draggable="true" href="/?q={{pick $.Q $tok}}"{{if has $.Q $tok}} class="on"{{end}}><i class="dot" style="--h:{{hue .Name}}"></i>{{base .Name}} <span>{{.N}}</span></a></li>
+        {{end}}
+      </ul>
+    </section>
+    {{if .Tags}}
+    <section data-section="tags">
+      <h2>Tags</h2>
+      <div class="tagcloud">
+        {{range .Tags}}{{$tok := print "#" .Name}}
+        <a data-tok="{{$tok}}" class="chip{{if has $.Q $tok}} on{{end}}" style="--h:{{hue .Name}}" href="/?q={{toggle $.Q $tok}}">#{{.Name}} <span>{{.N}}</span></a>
+        {{end}}
+      </div>
+    </section>
+    {{end}}
+    </div>
+    <footer class="side-foot">
+      <button class="btn ghost" type="button" id="options" aria-haspopup="true" aria-expanded="false" title="Options"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Options</button>
+      <div class="optmenu" id="optmenu" hidden>
+        <div class="optrow">
+          <span>Theme</span>
+          <div class="seg" id="opt-theme">
+            <button type="button" data-theme="">System</button>
+            <button type="button" data-theme="light">Light</button>
+            <button type="button" data-theme="dark">Dark</button>
+          </div>
+        </div>
+        <div class="optrow">
+          <span>Images</span>
+          <div class="seg" id="opt-img">
+            <button type="button" data-img="s" title="Small">S</button>
+            <button type="button" data-img="" title="Medium">M</button>
+            <button type="button" data-img="l" title="Large">L</button>
+            <button type="button" data-img="full" title="As wide as the note">Full</button>
+          </div>
+        </div>
+        <div class="optrow">
+          <span>List</span>
+          <div class="seg" id="opt-list">
+            <button type="button" data-list="" title="The list on top, the note under it">Above</button>
+            <button type="button" data-list="side" title="The list on the left, the note beside it">Beside</button>
+          </div>
+        </div>
+        <label class="optrow"><span>New notes go to</span><select id="opt-newdir">
+          <option value="">the top level</option>
+          {{range .Dirs}}<option value="{{.Name}}"{{if eq .Name $.Vault.NewDir}} selected{{end}}>{{.Name}}</option>{{end}}
+        </select></label>
+        <label class="optrow"><span>Folders include subfolders</span><input type="checkbox" id="opt-sub"{{if .Sub}} checked{{end}}></label>
+        <label class="optrow"><span>Vim mode</span><input type="checkbox" id="opt-vim"></label>
+        <a class="optrow" href="/vaults"><span>Vaults…</span></a>
+        <a class="optrow" href="#" data-tour><span>Show the tour</span></a>
+        <a class="optrow" href="/n/gonotes-help.md"><span>Help and keys</span><kbd>?</kbd></a>
+      </div>
+    </footer>
+  </aside>
+  <main class="main">{{if not .IsList}}{{template "searchbox" .}}{{end}}{{template "main" .}}</main>
+</div>
+<script src="/static/editor.js" defer></script>
+<script src="/static/app.js" defer></script>
+</body>
+</html>{{end}}

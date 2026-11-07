@@ -1,0 +1,1093 @@
+/* gonotes. The tokens are gofluence's, so the two look like one family. */
+@layer reset, tokens, base, content, layout, components, state, utilities;
+
+@layer tokens {
+    :root {
+        /* Primitives. One neutral ramp in oklch, so lightness is perceptually
+         * even and the scale stays legible when it is inverted for dark. */
+        --n-0: oklch(99.2% 0.002 265);
+        --n-1: oklch(97.2% 0.003 265);
+        --n-2: oklch(94.4% 0.004 265);
+        --n-3: oklch(89% 0.006 265);
+        --n-4: oklch(78% 0.008 265);
+        --n-5: oklch(64% 0.01 265);
+        --n-6: oklch(52% 0.012 265);
+        --n-7: oklch(40% 0.012 265);
+        --n-8: oklch(30% 0.012 265);
+        --n-9: oklch(22% 0.01 265);
+        --n-10: oklch(17% 0.008 265);
+        --n-11: oklch(13% 0.006 265);
+
+        /* The only three hues that carry meaning. Everything else is neutral. */
+        /* A vault's own gradient replaces these, on <html>. */
+        --hue-accent: 258;
+        --hue-accent2: 300;
+        --hue-danger: 26;
+        --hue-positive: 152;
+
+        /* Semantics, defined once. light-dark() follows color-scheme, which the
+         * theme switch sets, so there is no second palette to keep in step. */
+        color-scheme: light dark;
+
+        --surface: light-dark(var(--n-0), var(--n-11));
+        --surface-raised: light-dark(var(--n-1), var(--n-10));
+        --surface-sunken: light-dark(var(--n-2), var(--n-9));
+        --text: light-dark(var(--n-9), var(--n-1));
+        --text-muted: light-dark(var(--n-6), var(--n-5));
+        --border: light-dark(var(--n-3), var(--n-8));
+        --border-strong: light-dark(var(--n-4), var(--n-7));
+
+        --accent2: light-dark(
+            oklch(48% 0.17 var(--hue-accent2)),
+            oklch(76% 0.13 var(--hue-accent2))
+        );
+        --accent-gradient: linear-gradient(135deg, var(--accent), var(--accent2));
+        --accent: light-dark(
+            oklch(48% 0.17 var(--hue-accent)),
+            oklch(76% 0.13 var(--hue-accent))
+        );
+        --danger: light-dark(
+            oklch(50% 0.19 var(--hue-danger)),
+            oklch(72% 0.16 var(--hue-danger))
+        );
+        --positive: light-dark(
+            oklch(46% 0.13 var(--hue-positive)),
+            oklch(72% 0.13 var(--hue-positive))
+        );
+
+        /* Identity colours are derived from a hash of the key, never chosen.
+         * Lightness and chroma are fixed so that any hue at all stays legible
+         * in both themes, which is what makes 88 spaces free.
+         *
+         * Plain numbers, not light-dark(). These are channels of an oklch()
+         * further down, and light-dark() returns a colour, so substituting it
+         * into a channel made the whole declaration invalid and every chip in
+         * the application fell back to the surrounding text colour. It looked
+         * deliberate for months. Scalars that differ per theme have to use the
+         * three-state pattern below, which is what it is for. */
+        --chip-l: 38%;
+        --chip-c: 0.09;
+        --chip-bg-l: 95%;
+        --chip-bg-c: 0.03;
+
+        --space-1: 0.25rem;
+        --space-2: 0.5rem;
+        --space-3: 0.75rem;
+        --space-4: 1rem;
+        --space-5: 1.5rem;
+        --space-6: 2rem;
+        --space-7: 3rem;
+
+        --radius: 0.375rem;
+        --radius-full: 999px;
+
+        --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+        --step--1: 0.8125rem;
+        --step-0: 1rem;
+        --step-1: 1.0625rem;
+        --step-2: clamp(1.2rem, 1.1rem + 0.4vw, 1.4rem);
+
+        --ease: cubic-bezier(0.2, 0, 0.13, 1);
+        /* A spring that overshoots by about six percent and settles. */
+        --spring: linear(0, 0.06 2.4%, 0.22 5.3%, 0.66 11.6%, 0.88 16.4%, 1.01 21.7%,
+            1.06 26.3%, 1.065 30.4%, 1.045 36.4%, 1.01 46%, 0.995 57%, 1);
+        --fast: 120ms;
+        --slow: 220ms;
+    }
+
+    /* The switch overrides the OS by naming a scheme; light-dark() follows it,
+     * and so do native scrollbars and form controls. */
+    :root[data-theme="light"] { color-scheme: light; }
+    :root[data-theme="dark"] { color-scheme: dark; }
+
+    /* The scalars light-dark() cannot carry, in all three states: the OS
+     * preference unless the switch overrides it, and the switch either way. */
+    @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+            --chip-l: 82%;
+            --chip-c: 0.08;
+            --chip-bg-l: 26%;
+            --chip-bg-c: 0.04;
+        }
+    }
+    :root[data-theme="dark"] {
+        --chip-l: 82%;
+        --chip-c: 0.08;
+        --chip-bg-l: 26%;
+        --chip-bg-c: 0.04;
+    }
+}
+
+@layer reset {
+    *, *::before, *::after { box-sizing: border-box; }
+    * { margin: 0; }
+    input, button, textarea, select { font: inherit; color: inherit; }
+    img, svg { display: block; max-width: 100%; }
+}
+
+@layer base {
+    html { background: var(--surface); }
+    body {
+        background: var(--surface);
+        color: var(--text);
+        font-family: var(--font);
+        font-size: var(--step-0);
+        line-height: 1.55;
+        -webkit-font-smoothing: antialiased;
+        height: 100dvh;
+        overflow: hidden;
+    }
+    a { color: var(--accent); }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+    ::selection { background: color-mix(in oklch, var(--accent) 22%, transparent); }
+    mark {
+        background: color-mix(in oklch, var(--accent) 22%, transparent);
+        color: inherit;
+        border-radius: 2px;
+        padding: 0 1px;
+    }
+}
+
+@layer layout {
+    /* The page fits the window like an app: the sidebar and the main column
+       scroll on their own, the page itself never does. */
+    .shell {
+        height: 100%;
+        display: grid;
+        grid-template-columns: 15rem minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr);
+        gap: var(--space-3);
+        padding: var(--space-3) 0 var(--space-3) var(--space-3);
+    }
+    /* The logo and the vault on top, the folders and tags scrolling under
+       them, so the vault menu is not cut off by the scroll box. */
+    .side {
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-4);
+        font-size: var(--step--1);
+    }
+    /* The vault's gradient along the top of the window. */
+    body::before { content: ""; position: fixed; inset: 0 0 auto 0; height: 3px; background: var(--accent-gradient); z-index: 30; pointer-events: none; }
+    /* The whole sidebar folds away; a ▶ at the window's edge brings it back. */
+    :root[data-side="folded"] .shell { grid-template-columns: minmax(0, 1fr); padding-left: 1.6rem; }
+    :root[data-side="folded"] .side { display: none; }
+    .sideopen { display: none; }
+    :root[data-side="folded"] .sideopen {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: fixed;
+        left: 0;
+        top: var(--space-3);
+        z-index: 10;
+        width: 1.2rem;
+        height: 2rem; /* as high as the search box beside it, at its top */
+        padding: 0;
+        border: 1px solid var(--border);
+        border-left: 0;
+        border-radius: 0 3px 3px 0;
+        background: var(--surface);
+        color: var(--text-muted);
+        font-size: 0.6rem;
+        cursor: pointer;
+    }
+    .sideopen:hover, .sidefold:hover { color: var(--text); }
+    .sidefold { flex: none; width: 1.2rem; padding: 0; border: 0; background: transparent; color: var(--text-muted); font-size: 0.6rem; cursor: pointer; }
+    .side-head { position: relative; z-index: 6; display: flex; align-items: center; gap: var(--space-1); }
+    .side-body {
+        min-height: 0;
+        overflow-y: auto;
+        display: grid;
+        gap: var(--space-5);
+        scrollbar-width: thin;
+    }
+    .main {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        padding-right: var(--space-3);
+        scrollbar-width: thin;
+    }
+    .main > * { flex: none; }
+    .main > .browse, .main > .editor { flex: 1 1 auto; min-height: 22rem; }
+    @media (max-width: 52rem) {
+        body { height: auto; overflow: visible; }
+        .shell { height: auto; grid-template-columns: 1fr; grid-template-rows: none; padding: var(--space-3); }
+        .main { overflow: visible; padding-right: 0; }
+        .main > .browse, .main > .editor { height: 85dvh; }
+        /* The logo on top, then the page; the options at the bottom. */
+        .side, :root[data-side="folded"] .side { display: contents; }
+        :root[data-side="folded"] .shell { padding-left: var(--space-3); }
+        .sidefold, :root[data-side="folded"] .sideopen { display: none; }
+        /* The folders wait behind the folder button, and open above the list. */
+        .side-head { order: 0; }
+        .side-body { order: 1; overflow: visible; display: none; padding-bottom: var(--space-3); border-bottom: 1px solid var(--border); }
+        body[data-panel] .side-body { display: grid; }
+        body[data-panel="folders"] [data-section="tags"],
+        body[data-panel="tags"] [data-section="folders"] { display: none; }
+        .main { order: 2; }
+        .side-foot { order: 3; }
+        .search > kbd, .brand span, .hit .tags, .hit .folder { display: none; }
+    }
+}
+
+@layer components {
+    .brand {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        font-weight: 650;
+        letter-spacing: -0.01em;
+        color: var(--text);
+        text-decoration: none;
+    }
+    .brand img { width: 1.35rem; height: 1.35rem; }
+
+    .side-head .foldersbtn { display: none; width: 2rem; padding: 0; justify-content: center; color: var(--text-muted); }
+    .foldersbtn svg { width: 1.1rem; height: 1.1rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+    .foldersbtn[aria-expanded="true"] { color: var(--accent); }
+    @media (max-width: 52rem) { .side-head .foldersbtn { display: inline-flex; } }
+    .side-head .brand { margin-right: auto; padding-left: var(--space-2); font-size: var(--step-0); }
+
+    /* The vault switcher, shown only when there is more than one folder. */
+    .vaults { min-width: 0; }
+    .vaults > .btn { display: inline-flex; align-items: center; gap: var(--space-2); max-width: 100%; }
+    .vaults > .btn > b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .vaults > .btn > span { color: var(--text-muted); font-size: 0.7em; }
+    .vaultmenu {
+        position: absolute;
+        top: calc(100% + var(--space-1));
+        left: 0;
+        right: 0;
+        list-style: none;
+        padding: var(--space-1);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--surface);
+        box-shadow: 0 12px 32px -8px oklch(0% 0 0 / 0.25), 0 2px 6px oklch(0% 0 0 / 0.08);
+        z-index: 6;
+    }
+    .vaultmenu[hidden], .optmenu[hidden] { display: none; }
+    .vaultmenu a {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: 0.3rem var(--space-2);
+        border-radius: var(--radius);
+        color: var(--text);
+        text-decoration: none;
+    }
+    .vaultmenu a:hover, .vaultmenu a.cur { background: var(--surface-sunken); }
+    .vaultmenu a.on { color: var(--accent); font-weight: 600; }
+    .vaultmenu kbd { font-size: 0.65rem; }
+    .vaultmenu .sep { margin-top: var(--space-1); padding-top: var(--space-1); border-top: 1px solid var(--border); }
+    .vaultmenu .sep a { color: var(--text-muted); }
+    .vaultmenu kbd { min-width: 2.6rem; text-align: center; }
+    .vaultmenu .hint { padding: var(--space-1) var(--space-2) 0; font-size: 0.7rem; color: var(--text-muted); }
+    .vaultmenu .hint kbd { min-width: 0; margin-right: var(--space-1); }
+
+    /* A vault's colour: a dot of its gradient. */
+    .vdot {
+        width: 0.6rem;
+        height: 0.6rem;
+        border-radius: 3px;
+        flex: none;
+        background: linear-gradient(135deg, oklch(68% 0.15 var(--g1)), oklch(68% 0.15 var(--g2)));
+    }
+    .side-foot { position: relative; margin-top: auto; }
+    .side-foot > .btn { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--text-muted); border-color: transparent; }
+    .side-foot > .btn:hover { color: var(--text); }
+    .side-foot svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 1.8; }
+    .optmenu {
+        position: absolute;
+        bottom: calc(100% + var(--space-1));
+        left: 0;
+        min-width: 15rem;
+        display: grid;
+        gap: var(--space-1);
+        padding: var(--space-2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--surface);
+        box-shadow: 0 12px 32px -8px oklch(0% 0 0 / 0.25), 0 2px 6px oklch(0% 0 0 / 0.08);
+        z-index: 6;
+    }
+    .optrow { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-1) var(--space-1); }
+    a.optrow { color: var(--text); text-decoration: none; border-radius: var(--radius); }
+    a.optrow:hover { background: var(--surface-sunken); }
+    .optrow select { max-width: 9rem; height: 1.6rem; padding: 0 var(--space-1); border: 1px solid var(--border); border-radius: 3px; background: var(--surface); color: var(--text); font-size: 0.75rem; }
+    .optrow .seg button { height: 1.6rem; padding: 0 var(--space-2); font-size: 0.75rem; }
+    .vaultmenu span { margin-left: auto; color: var(--text-muted); font-size: 0.72rem; font-variant-numeric: tabular-nums; font-weight: 400; }
+    /* Away from the list the box sits on top of the page, its dropdown over it. */
+    .main > .search { flex: none; max-width: none; z-index: 5; margin-bottom: var(--space-3); }
+    .browse > .search { flex: none; max-width: none; margin-bottom: var(--space-3); }
+    .search {
+        flex: 1;
+        max-width: 44rem;
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+    .search svg {
+        position: absolute;
+        left: 0.7rem;
+        width: 0.875rem;
+        height: 0.875rem;
+        fill: none;
+        stroke: var(--text-muted);
+        stroke-width: 2;
+        stroke-linecap: round;
+        pointer-events: none;
+    }
+    .search input {
+        width: 100%;
+        height: 2rem; /* fixed, so the sidebar's ▶ tab can match it */
+        padding: 0 2.5rem 0 2.1rem;
+        font-size: var(--step--1);
+        border: 1px solid var(--border);
+        border-radius: 3px;
+        background: var(--surface-raised);
+        transition: border-color var(--fast) var(--ease), background var(--fast) var(--ease);
+    }
+    .search input:focus-visible { outline: 1px solid var(--border-strong); outline-offset: -1px; background: var(--surface); }
+    .search input::placeholder { color: var(--text-muted); }
+    .search input::-webkit-search-cancel-button { display: none; }
+    kbd {
+        font-family: var(--font-mono);
+        font-size: 0.7rem;
+        color: var(--text-muted);
+        border: 1px solid var(--border);
+        border-bottom-width: 2px;
+        border-radius: 4px;
+        padding: 0 0.35rem;
+    }
+    .search > kbd { position: absolute; right: var(--space-3); pointer-events: none; }
+
+    /* Search results away from the list page, under the box. */
+    .palette {
+        position: absolute;
+        top: calc(100% + var(--space-1));
+        left: 0;
+        right: 0;
+        max-height: min(70dvh, 34rem);
+        overflow-y: auto;
+        padding: var(--space-2) var(--space-3);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--surface);
+        box-shadow: 0 12px 32px -8px oklch(0% 0 0 / 0.25), 0 2px 6px oklch(0% 0 0 / 0.08);
+        scrollbar-width: thin;
+    }
+    .palette { display: flex; flex-direction: column; max-height: min(80dvh, 44rem); overflow: hidden; }
+    .palette[hidden] { display: none; }
+    .palette .hits { flex: none; }
+    .palette .peek { flex: 1 1 auto; max-height: 50dvh; margin-top: var(--space-2); padding: var(--space-3) var(--space-4); }
+    #results > .empty, .palette .empty {
+        height: calc(var(--rows) * var(--row));
+        margin-top: var(--space-2);
+        padding: 0;
+        align-content: center;
+    }
+    .search:focus-within > kbd { opacity: 0; }
+
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--space-1);
+        height: 2rem;
+        padding: 0 var(--space-3);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--surface-raised);
+        color: var(--text);
+        font-size: var(--step--1);
+        font-weight: 550;
+        text-decoration: none;
+        white-space: nowrap;
+        cursor: pointer;
+        transition: background var(--fast) var(--ease), border-color var(--fast) var(--ease), color var(--fast) var(--ease);
+    }
+    .btn:hover { border-color: var(--border-strong); }
+    .btn.primary { background: var(--accent-gradient); border-color: transparent; color: var(--surface); }
+    .btn.primary:hover { filter: brightness(1.08); }
+    .btn.ghost { background: transparent; }
+    .btn.danger:hover { color: var(--danger); border-color: var(--danger); }
+
+    .side h2 {
+        font-size: 0.7rem;
+        font-weight: 650;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        margin-bottom: var(--space-2);
+    }
+    .facets { list-style: none; padding: 0; }
+    .facets li { padding-left: calc(var(--d, 0) * 0.9rem); display: flex; align-items: center; }
+    .facets li[hidden] { display: none; }
+    /* A folder left out of searches is grey, and so is what is in it. */
+    .facets li.excluded > a { color: var(--text-muted); opacity: 0.55; }
+    .facets li.excluded > a .dot { filter: grayscale(1); }
+    .facets li:not([data-dir]):not(.newfolder) { padding-left: 1rem; }
+    .facets li > a { flex: 1; min-width: 0; }
+    /* The arrow that opens and closes a folder; a folder without folders in
+       it keeps the room, so names line up. */
+    .fold {
+        flex: none;
+        width: 1rem;
+        height: 1.4rem;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: var(--text-muted);
+        font-size: 0.6rem;
+        cursor: pointer;
+    }
+    .fold::before { content: "▶"; display: inline-block; transition: transform 0.12s ease; }
+    .fold[aria-expanded="true"]::before { transform: rotate(90deg); }
+    .fold:disabled { visibility: hidden; }
+    .fold:hover { color: var(--text); }
+    .foldall {
+        margin-left: auto;
+        width: 1.25rem;
+        height: 1.25rem;
+        border: 0;
+        border-radius: var(--radius);
+        background: transparent;
+        color: var(--text-muted);
+        font-size: 0.85rem;
+        line-height: 1;
+        cursor: pointer;
+    }
+    .foldall:hover { background: var(--surface-sunken); color: var(--text); }
+    .foldall:not([hidden]) + .addfolder { margin-left: 0; }
+    .facets a {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: 0.2rem var(--space-2);
+        border-radius: var(--radius);
+        color: var(--text);
+        text-decoration: none;
+    }
+    .facets a:hover { background: var(--surface-sunken); }
+    .facets a.on { background: color-mix(in oklch, var(--accent) 14%, transparent); color: var(--accent); font-weight: 600; }
+    .facets span, .chip span { margin-left: auto; color: var(--text-muted); font-size: 0.72rem; font-variant-numeric: tabular-nums; font-weight: 400; }
+    .chip span { margin-left: 0.2rem; }
+    .dot {
+        width: 0.5rem;
+        height: 0.5rem;
+        border-radius: 2px;
+        flex: none;
+        background: oklch(var(--chip-l) var(--chip-c) var(--h));
+    }
+    .tagcloud { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+
+    .chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.05rem 0.5rem;
+        border-radius: var(--radius-full);
+        font-size: 0.75rem;
+        font-weight: 600;
+        white-space: nowrap;
+        text-decoration: none;
+        color: oklch(var(--chip-l) var(--chip-c) var(--h, 265));
+        background: oklch(var(--chip-bg-l) var(--chip-bg-c) var(--h, 265));
+        border: 1px solid transparent;
+    }
+    a.chip:hover, .chip.on { border-color: currentColor; }
+    .chip.small { font-size: 0.7rem; padding: 0 0.4rem; }
+
+    .meta { color: var(--text-muted); font-size: var(--step--1); display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+    .muted { color: var(--text-muted); }
+
+    /* The list page: a short list of one-line rows, the selected note under it. */
+    .browse {
+        display: flex;
+        flex-direction: column;
+    }
+    #results { display: flex; flex-direction: column; min-height: 0; flex: none; }
+    /* The list is always six rows high, whatever it holds, so the note under
+       it stays put while you type; more rows scroll, cut after a whole one. */
+    .browse, .palette { --row: 1.85rem; --rows: 6; }
+    .hits {
+        height: calc(var(--rows) * var(--row));
+        list-style: none;
+        padding: 0;
+        margin-top: var(--space-2);
+        overflow-y: auto;
+        min-height: 0;
+        scrollbar-width: thin;
+    }
+    .hit {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        height: var(--row);
+        padding: 0 var(--space-2);
+        border-radius: var(--radius);
+        color: var(--text);
+        text-decoration: none;
+        font-size: var(--step--1);
+        cursor: default;
+        user-select: none;
+    }
+    .hit:hover { background: var(--surface-raised); }
+    /* The selection is the row's own highlight; a focus ring on top would
+       look like a second one. */
+    .hit:focus, .hit:focus-visible { outline: none; }
+    .hit.sel { background: color-mix(in oklch, var(--accent) 14%, transparent); }
+    .hit .title { font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+    .hit.sel .title { color: var(--accent); }
+    /* Several notes marked with Shift. */
+    .hit.marked { background: color-mix(in oklch, var(--accent) 9%, transparent); }
+    .hit.marked.sel { background: color-mix(in oklch, var(--accent) 16%, transparent); }
+    /* On the selected row only: what Enter does. */
+    .enterhint { display: none; flex: none; align-items: center; gap: 0.25rem; padding-left: var(--space-2); font-size: 0.68rem; line-height: 1; color: var(--text-muted); }
+    .enterhint kbd { font-size: 0.6rem; line-height: 1.3; padding: 0 0.3rem; border-bottom-width: 1px; }
+    .hit.sel .enterhint { display: inline-flex; }
+    /* The note's text after the title, faint, taking whatever room is left. */
+    .hit .snippet {
+        flex: 1 1 0;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: color-mix(in oklch, var(--text-muted) 70%, transparent);
+        font-size: 0.78rem;
+    }
+    .hit .snippet mark { color: var(--text-muted); }
+    .hit .title { flex: 0 1 auto; max-width: 55%; }
+    .hit .tags { display: flex; gap: var(--space-1); overflow: hidden; flex-shrink: 1; min-width: 0; }
+    .hit time { margin-left: 0; color: var(--text-muted); font-size: 0.72rem; white-space: nowrap; flex: none; padding-left: var(--space-2); }
+    .folder { font-family: var(--font-mono); font-size: 0.72rem; color: oklch(var(--chip-l) var(--chip-c) var(--h)); white-space: nowrap; flex: none; }
+
+    .peek {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        margin-top: var(--space-2);
+        padding: var(--space-4) var(--space-2) var(--space-6);
+        border-top: 2px solid transparent;
+        border-bottom: 1px solid var(--border);
+        /* The line under the list is the vault's gradient. */
+        background: var(--accent-gradient) border-box top / 100% 2px no-repeat, var(--surface) padding-box;
+        scrollbar-width: thin;
+    }
+    .peek:empty { display: none; }
+    /* The line between list and note, to drag. It lies over the note's top
+       line, a little taller than it, and shows when it can be taken. */
+    /* 10px around the line: it lies 5px into it, where the note's own top
+       line is drawn. */
+    .splitter { position: relative; z-index: 2; flex: none; height: 10px; margin: 3px 0 -5px; cursor: row-resize; touch-action: none; }
+    .browse > .peek { margin-top: 0; }
+    .splitter::after { content: ""; position: absolute; inset: 4px 0 auto; height: 4px; border-radius: 2px; background: var(--border-strong); opacity: 0; transition: opacity 0.12s ease; }
+    .splitter:hover::after, .splitter:focus-visible::after, .splitter.dragging::after { opacity: 1; }
+    .splitter:focus-visible { outline: none; }
+    /* The way to the full list, on the line's right end. */
+    .fulllist {
+        position: absolute;
+        right: var(--space-2);
+        top: 7px; /* hanging from the line */
+        z-index: 1; /* over the line's highlight */
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+        height: 1.2rem;
+        padding: 0 3px 0 var(--space-2);
+        border: 1px solid var(--border);
+        border-top: 0;
+        border-radius: 0 0 3px 3px;
+        background: var(--surface);
+        color: var(--text-muted);
+        font-size: 0.7rem;
+        cursor: pointer;
+    }
+    .fulllist:hover { color: var(--text); border-color: var(--border-strong); }
+    .fulllist kbd { font-size: 0.6rem; line-height: 1.25; padding: 0 0.25rem; border-bottom-width: 1px; }
+    body.focus .splitter { display: none; }
+    /* Alt+L: the list takes the page, the note waits. */
+    .browse.listfull #results { flex: 1 1 auto; }
+    .browse.listfull .hits { height: auto; flex: 1 1 auto; }
+    .browse.listfull #peek, .browse.listfull .splitter { display: none; }
+    /* The bar that says so, and brings the note back. */
+    .listbar { display: none; }
+    .browse.listfull .listbar {
+        display: flex;
+        flex: none;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-3);
+        margin-top: var(--space-2);
+        padding: var(--space-2) var(--space-2) 0;
+        border-top: 2px solid transparent;
+        background: var(--accent-gradient) border-box top / 100% 2px no-repeat;
+        font-size: var(--step--1);
+        color: var(--text-muted);
+    }
+    .listbar b { color: var(--text); font-weight: 600; }
+    .listbar .btn { height: 1.7rem; gap: var(--space-2); }
+    /* Options → List: Beside. The list on the left as high as the page, the
+       note on its right; the line between them drags sideways. Narrow
+       windows keep the list on top. */
+    @media (width > 52rem) {
+        :root[data-list="side"] .browse {
+            display: grid;
+            grid-template-columns: var(--listw, 24rem) auto minmax(0, 1fr);
+            grid-template-rows: auto minmax(0, 1fr) auto;
+        }
+        :root[data-list="side"] .browse > .search { grid-column: 1 / -1; }
+        :root[data-list="side"] .browse > #results { grid-area: 2 / 1; }
+        :root[data-list="side"] .browse .hits { height: auto; flex: 1 1 auto; }
+        :root[data-list="side"] .browse .hit .title { max-width: 100%; }
+        :root[data-list="side"] .browse > .listbar { grid-area: 3 / 1 / 4 / -1; }
+        :root[data-list="side"] .browse > .splitter { grid-area: 2 / 2 / 4 / 3; width: 10px; height: auto; margin: 0 -5px 0 3px; cursor: col-resize; }
+        :root[data-list="side"] .browse > .splitter::after { inset: 0 auto 0 4px; width: 4px; height: auto; }
+        :root[data-list="side"] .browse .fulllist { right: auto; left: 7px; top: auto; bottom: 0; border: 1px solid var(--border); border-left: 0; border-radius: 0 3px 3px 0; }
+        :root[data-list="side"] .browse > #peek {
+            grid-area: 2 / 3 / 4 / 4;
+            margin-top: var(--space-2);
+            padding-left: var(--space-4);
+            border-top: 0;
+            border-left: 2px solid transparent;
+            background: var(--accent-gradient) border-box left / 2px 100% no-repeat, var(--surface) padding-box;
+        }
+        :root[data-list="side"] .browse.listfull > #results { grid-column: 1 / -1; }
+        /* A note open in place takes the whole width. */
+        :root[data-list="side"] body.focus .browse > #peek {
+            grid-column: 1 / -1;
+            margin-top: 0;
+            padding-left: var(--space-2);
+            border-left: 0;
+            border-top: 2px solid transparent;
+            background: var(--accent-gradient) border-box top / 100% 2px no-repeat, var(--surface) padding-box;
+        }
+    }
+    /* One note open in place: the list folded away, the folders dimmed. */
+    #results { overflow: hidden; }
+    .browse > .folded, #results.folded { display: none; }
+    .browse > .search { overflow: hidden; }
+    /* The editor page keeps its search box out of sight until Ctrl+K. */
+    body.dim .main > .search { display: none; }
+    body.focus .peek { margin-top: 0; }
+    .side { position: relative; }
+    .side::after {
+        content: "";
+        position: absolute;
+        inset: calc(-1 * var(--space-3)) 0 calc(-1 * var(--space-3)) calc(-1 * var(--space-3));
+        /* Barely visible: the folders all but fade into the page. */
+        background: light-dark(color-mix(in oklch, var(--surface) 85%, transparent), oklch(0% 0 0 / 0.85));
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.18s ease;
+    }
+    /* Darker while writing: a note open in place, or the editor page. */
+    body.dim .side::after { opacity: 1; }
+    body.dim .side:hover::after { opacity: 0.3; }
+    /* The logo and vault switcher sit above that veil, so the vault menu can
+       open over it; they fade the same way, and come back with an open menu. */
+    .side-head { transition: opacity 0.18s ease; }
+    body.dim .side-head { opacity: 0.15; }
+    body.dim .side:hover .side-head { opacity: 0.7; }
+    body.dim .side-head:has(.vaultmenu:not([hidden])) { opacity: 1; }
+    .peek .prose { max-width: 50rem; }
+    /* The file name and when it changed, small in the top right corner. */
+    /* The note's title on the left, its file and state small on the right. */
+    .peek-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-4); margin-bottom: var(--space-2); }
+    .peek-title { flex: 1 1 auto; min-width: 0; font-size: var(--step-1); font-weight: 650; letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* Back to the list, while a note is open in place. */
+    .peek-back { display: none; width: 2rem; padding: 0; justify-content: center; align-self: center; font-size: 1rem; }
+    body.focus .peek-back { display: inline-flex; }
+    .peek-title.renamable { cursor: text; border-radius: 3px; }
+    .peek-title.renamable:hover { background: var(--surface-sunken); }
+    .peek-title-input {
+        flex: 1 1 auto;
+        min-width: 0;
+        font-size: var(--step-1);
+        font-weight: 650;
+        letter-spacing: -0.01em;
+        padding: 0 var(--space-1);
+        border: 1px solid var(--border-strong);
+        border-radius: 3px;
+        background: var(--surface);
+        color: var(--text);
+    }
+    /* Live or Source matters only while writing. */
+    body:not(.focus) .peek .rendermode { display: none; }
+    .peek-meta { margin-left: auto; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: var(--space-2); font-size: 0.72rem; color: var(--text-muted); }
+    .peek-path { font-family: var(--font-mono); font-size: 0.7rem; }
+    .rendermode button { height: 1.5rem; padding: 0 var(--space-2); font-size: 0.7rem; }
+    /* While it grows into the page it is opening. */
+    .growing { position: fixed; z-index: 20; margin: 0; max-width: none; overflow: hidden; box-shadow: 0 16px 40px -12px oklch(0% 0 0 / 0.3); }
+
+    .empty { padding: var(--space-7) 0; text-align: center; color: var(--text-muted); display: grid; gap: var(--space-3); justify-items: center; }
+
+    .actions { display: flex; gap: var(--space-2); align-items: center; }
+
+    .editor { display: flex; flex-direction: column; gap: var(--space-3); }
+    .editor-head { display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap; }
+    .pathfield { flex: 1; min-width: 14rem; display: flex; align-items: center; gap: var(--space-2); font-size: var(--step--1); color: var(--text-muted); }
+    .pathfield input {
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--surface);
+    }
+    .pathfield input { flex: 1; height: 2rem; padding: 0 var(--space-3); font-family: var(--font-mono); font-size: 0.85rem; color: var(--text); }
+    .pathfield input:focus-visible { outline-offset: -1px; }
+    .savestate { font-size: var(--step--1); color: var(--text-muted); }
+    .seg { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .seg button { border: 0; background: transparent; padding: 0 var(--space-3); height: 1.9rem; font-size: var(--step--1); color: var(--text-muted); cursor: pointer; }
+    .seg button + button { border-left: 1px solid var(--border); }
+    .seg button.on { background: var(--surface-sunken); color: var(--text); font-weight: 600; }
+    .editor .live { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    .editor .cm-editor { flex: 1; min-height: 0; }
+    .editor .cm-scroller { scrollbar-width: thin; }
+
+    .alert {
+        padding: var(--space-2) var(--space-3);
+        border: 1px solid var(--danger);
+        border-radius: var(--radius);
+        color: var(--danger);
+        background: color-mix(in oklch, var(--danger) 8%, transparent);
+        font-size: var(--step--1);
+        display: flex; gap: var(--space-4); flex-wrap: wrap;
+    }
+    .alert label { color: var(--text); display: flex; gap: var(--space-1); align-items: center; }
+
+    .toast {
+        position: fixed; bottom: var(--space-5); left: 50%; translate: -50% 0;
+        padding: var(--space-2) var(--space-4);
+        border-radius: var(--radius-full);
+        background: var(--text); color: var(--surface);
+        font-size: var(--step--1);
+        animation: toast 1.6s var(--ease) forwards;
+    }
+    .toast { display: flex; align-items: center; gap: var(--space-3); }
+    .toast button {
+        border: 0;
+        background: none;
+        color: inherit;
+        font-weight: 650;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        cursor: pointer;
+        padding: 0;
+    }
+
+    /* Walking the folders with the keyboard. */
+    .kbdhint { display: none; color: var(--text-muted); font-size: 0.7rem; line-height: 1.8; margin-bottom: var(--space-2); }
+    .side.kbd .kbdhint { display: block; }
+    .kbdhint kbd { font-size: 0.65rem; }
+    .facets a.cur { outline: 2px solid var(--accent); outline-offset: -2px; }
+    .side.kbd ~ .main .hit.sel { background: var(--surface-sunken); }
+
+    /* Dragging a note: every folder shows it can take it, the one under the
+       pointer says so loudest. */
+    body.dragging .facets a[data-tok] { outline: 1px dashed var(--border-strong); outline-offset: -1px; }
+    .side h2 { display: flex; align-items: center; }
+    .addfolder {
+        margin-left: auto;
+        width: 1.25rem;
+        height: 1.25rem;
+        border: 0;
+        border-radius: var(--radius);
+        background: transparent;
+        color: var(--text-muted);
+        font-size: 1rem;
+        line-height: 1;
+        cursor: pointer;
+    }
+    .addfolder:hover { background: var(--surface-sunken); color: var(--text); }
+    .facets .renamefolder,
+    .facets .newfolder input {
+        width: 100%;
+        padding: 0.15rem var(--space-2);
+        border: 1px solid var(--accent);
+        border-radius: var(--radius);
+        background: var(--surface);
+        font-family: var(--font-mono);
+        font-size: 0.75rem;
+    }
+    .facets a.drop {
+        background: color-mix(in oklch, var(--accent) 22%, transparent);
+        outline: 2px solid var(--accent) !important;
+        color: var(--accent);
+    }
+    .hit[draggable="true"]:active { cursor: grabbing; }
+
+    @keyframes toast { 0% { opacity: 0; translate: -50% 8px; } 12%, 80% { opacity: 1; translate: -50% 0; } 100% { opacity: 0; } }
+}
+
+/* Rendered markdown. */
+@layer content {
+    .prose { line-height: 1.65; overflow-wrap: anywhere; }
+    .prose > * + * { margin-top: var(--space-3); }
+    .prose h1, .prose h2, .prose h3, .prose h4 { line-height: 1.25; letter-spacing: -0.015em; text-wrap: balance; margin-top: var(--space-5); }
+    .prose > :first-child { margin-top: 0; }
+    .prose h1 { font-size: 1.75em; font-weight: 700; }
+    .prose h2 { font-size: 1.35em; padding-bottom: var(--space-1); border-bottom: 1px solid var(--border); }
+    .prose h3 { font-size: 1.12em; }
+    .prose h4 { font-size: 1em; }
+    .prose ul, .prose ol { padding-left: 1.5rem; }
+    .prose li + li, .prose li > ul, .prose li > ol { margin-top: var(--space-1); }
+    .prose li:has(> input[type=checkbox]) { list-style: none; margin-left: -1.3rem; }
+    .prose input[type=checkbox] { margin-right: var(--space-2); accent-color: var(--accent); }
+    .prose blockquote { border-left: 3px solid var(--border-strong); padding-left: var(--space-4); color: var(--text-muted); }
+    .prose code { font-family: var(--font-mono); font-size: 0.86em; background: var(--surface-sunken); padding: 0.1em 0.35em; border-radius: 4px; }
+    .prose pre { background: var(--surface-sunken); padding: var(--space-3) var(--space-4); border-radius: var(--radius); overflow-x: auto; line-height: 1.5; }
+    .prose pre code { background: none; padding: 0; font-size: 0.84em; }
+    .prose table { border-collapse: collapse; font-size: var(--step--1); display: block; overflow-x: auto; }
+    .prose th, .prose td { border: 1px solid var(--border); padding: var(--space-1) var(--space-3); text-align: left; }
+    .prose th { background: var(--surface-raised); }
+    .prose hr { border: 0; border-top: 1px solid var(--border); margin-block: var(--space-5); }
+    .prose img { border-radius: var(--radius); }
+    .prose a { text-underline-offset: 2px; }
+    .prose dt { font-weight: 600; }
+    .prose dd { margin-left: var(--space-4); }
+}
+
+/* The live editor: markdown that reads as rendered, with the markup shown
+   only on the lines being edited. Outside the layers and one class more
+   specific than CodeMirror's own styles, which it adds outside any layer. */
+.live .cm-editor { font-size: 0.9375rem; background: transparent; }
+.live .cm-editor.cm-focused { outline: none; }
+.live .cm-editor .cm-scroller { font-family: var(--font); }
+.live .cm-editor .cm-content { line-height: 1.65; padding: var(--space-2) 0 var(--space-6); caret-color: var(--text); }
+.live .cm-editor .cm-line { padding: 0 var(--space-1); }
+.live .cm-editor .cm-cursor { border-left-color: var(--text); }
+.live .cm-editor .cm-selectionBackground { background: color-mix(in oklch, var(--accent) 22%, transparent) !important; }
+.live .cm-editor .cm-fat-cursor { background: color-mix(in oklch, var(--accent) 55%, transparent) !important; outline: none !important; }
+.live .cm-editor .cm-h { font-weight: 650; letter-spacing: -0.015em; line-height: 1.3; }
+.live .cm-editor .cm-h1 { font-size: 1.6em; font-weight: 700; padding-top: 0.3em; }
+.live .cm-editor .cm-h2 { font-size: 1.3em; padding-top: 0.25em; }
+.live .cm-editor .cm-h3 { font-size: 1.12em; }
+.live .cm-editor .cm-heading { font-weight: inherit; }
+.live .cm-editor .cm-strong { font-weight: 650; }
+.live .cm-editor .cm-em { font-style: italic; }
+.live .cm-editor .cm-strike { text-decoration: line-through; color: var(--text-muted); }
+.live .cm-editor .cm-link { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+.live .cm-editor .cm-url, .live .cm-editor .cm-markup { color: var(--text-muted); }
+.live .cm-editor .cm-mono { font-family: var(--font-mono); font-size: 0.86em; }
+.live .cm-editor .cm-line:not(.cm-codeblock) .cm-mono { background: var(--surface-sunken); border-radius: 3px; padding: 0.1em 0.25em; }
+.live .cm-editor .cm-codeblock { font-family: var(--font-mono); font-size: 0.86em; background: var(--surface-sunken); }
+.live .cm-editor .cm-quote { border-left: 3px solid var(--border-strong); padding-left: var(--space-3); color: var(--text-muted); }
+.live .cm-editor .cm-bullet { color: var(--text-muted); padding-right: 0.15em; }
+.live .cm-editor .cm-check { vertical-align: -0.1em; margin: 0 0.15em 0 0; accent-color: var(--accent); cursor: pointer; }
+.live .cm-editor .cm-done { color: var(--text-muted); text-decoration: line-through; }
+.live .cm-editor .cm-rule { display: inline-block; width: 100%; vertical-align: middle; border-top: 1px solid var(--border); }
+/* Images in notes, as large as Options says: S, M (this), L or Full. */
+:root { --img-h: 24rem; }
+:root[data-img="s"] { --img-h: 10rem; }
+:root[data-img="l"] { --img-h: 40rem; }
+:root[data-img="full"] { --img-h: none; }
+.live .cm-editor .cm-img { display: inline-block; max-width: 100%; max-height: var(--img-h); border-radius: var(--radius); }
+.live .cm-editor .cm-img:not(.loaded) { width: 20rem; height: min(15rem, var(--img-h)); background: var(--surface-sunken); }
+:root[data-img="full"] .live .cm-editor .cm-img:not(.loaded) { height: 15rem; }
+.live .cm-editor .cm-tag { color: var(--accent); }
+.live .cm-editor .cm-hit { background: color-mix(in oklch, var(--accent) 22%, transparent); border-radius: 2px; }
+.live .cm-editor .cm-frontmatter { font-family: var(--font-mono); font-size: 0.8em; color: var(--text-muted); }
+.live .cm-editor .cm-panels { background: var(--surface); color: var(--text); border-color: var(--border); font-family: var(--font-mono); font-size: 0.85em; }
+
+/* The Vaults page. */
+@layer components {
+    .vaults-page { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-4); max-width: 46rem; padding-bottom: var(--space-6); }
+    .vaults-page h1 { font-size: var(--step-2); }
+    .vaults-page .saved { color: var(--positive); font-size: var(--step--1); }
+    .default-submit { position: absolute; left: -9999px; }
+    .vaultrow {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        /* A fieldset is as wide as its content unless told otherwise, which
+           pushed the page past a phone's edge. */
+        min-width: 0;
+        gap: var(--space-2);
+        padding: var(--space-3) var(--space-4) var(--space-4);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        border-top: 3px solid transparent;
+        background: linear-gradient(90deg, oklch(68% 0.15 var(--g1)), oklch(68% 0.15 var(--g2))) border-box top / 100% 3px no-repeat, var(--surface) padding-box;
+    }
+    .vaultrow.new { border-style: dashed; border-top-style: solid; }
+    .vaultrow-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); font-size: var(--step--1); }
+    .vaultrow-head strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .vaultrow-head .spacer { flex: 1; }
+    .vaultrow-head .btn { width: 1.9rem; padding: 0; justify-content: center; }
+    .vaultrow-head .remove { display: flex; align-items: center; gap: var(--space-1); color: var(--text-muted); margin-left: var(--space-2); }
+    .field { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr); align-items: center; gap: var(--space-2); font-size: var(--step--1); color: var(--text-muted); }
+    .field input { min-width: 0; height: 1.9rem; padding: 0 var(--space-2); border: 1px solid var(--border); border-radius: 3px; background: var(--surface); color: var(--text); }
+    .gradient { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr); gap: var(--space-2) var(--space-2); align-items: center; font-size: var(--step--1); color: var(--text-muted); }
+    .gradient-strip {
+        grid-column: 2;
+        height: 1.4rem;
+        border-radius: var(--radius);
+        background: linear-gradient(90deg, oklch(68% 0.15 var(--g1)), oklch(68% 0.15 var(--g2)));
+    }
+    .gradient label { display: contents; }
+    .gradient input[type=range] {
+        appearance: none;
+        width: 100%;
+        min-width: 0;
+        height: 0.6rem;
+        border-radius: var(--radius-full);
+        background: linear-gradient(90deg in oklch longer hue, oklch(68% 0.15 0), oklch(68% 0.15 359));
+        cursor: pointer;
+    }
+    .gradient input[type=range]::-webkit-slider-thumb { appearance: none; width: 1rem; height: 1rem; border-radius: 50%; background: var(--surface); border: 2px solid var(--text); }
+    .gradient input[type=range]::-moz-range-thumb { width: 0.8rem; height: 0.8rem; border-radius: 50%; background: var(--surface); border: 2px solid var(--text); }
+    .presets { grid-column: 2; display: flex; flex-wrap: wrap; gap: var(--space-1); }
+    .presets button {
+        width: 1.6rem;
+        height: 1.1rem;
+        border: 1px solid var(--border);
+        border-radius: 3px;
+        background: linear-gradient(90deg, oklch(68% 0.15 var(--g1)), oklch(68% 0.15 var(--g2)));
+        cursor: pointer;
+    }
+    .presets button:hover { outline: 2px solid var(--text-muted); outline-offset: 1px; }
+    /* On a phone the labels go over their fields, which get the whole width. */
+    @media (max-width: 52rem) {
+        .vaultrow { padding: var(--space-3); }
+        .field, .gradient { grid-template-columns: minmax(0, 1fr); gap: var(--space-1); }
+        .gradient-strip, .presets, .folderfield .picker { grid-column: 1; }
+    }
+}
+
+/* Source: the plain markdown, nothing rendered. */
+.live .cm-editor.cm-source .cm-scroller { font-family: var(--font-mono); }
+.live .cm-editor.cm-source .cm-content { font-size: 0.86rem; }
+
+/* The folder picker on the Vaults page. */
+@layer components {
+    .folderfield .folderpick { display: flex; gap: var(--space-2); }
+    .folderfield .folderpick input { flex: 1; min-width: 0; }
+    .folderfield .folderpick .btn { height: 1.9rem; }
+    .picker {
+        grid-column: 2;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--surface);
+        font-size: var(--step--1);
+    }
+    .picker[hidden] { display: none; }
+    .picker-places { display: flex; flex-wrap: wrap; gap: var(--space-1); padding: var(--space-2) var(--space-2) 0; }
+    .picker-places .chip { cursor: pointer; --h: 230; }
+    .picker-head { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2); border-bottom: 1px solid var(--border); }
+    .picker-head code { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); font-size: 0.75rem; color: var(--text); }
+    .picker-head .btn { height: 1.7rem; }
+    .picker ul { list-style: none; padding: var(--space-1); max-height: 14rem; overflow-y: auto; scrollbar-width: thin; }
+    .picker li button {
+        width: 100%;
+        text-align: left;
+        padding: 0.2rem var(--space-2);
+        border: 0;
+        border-radius: 3px;
+        background: transparent;
+        color: var(--text);
+        cursor: pointer;
+    }
+    .picker li button::before { content: "▸ "; color: var(--text-muted); }
+    .picker li button:hover { background: var(--surface-sunken); }
+    .picker li.muted { padding: 0.2rem var(--space-2); color: var(--text-muted); }
+}
+
+/* The first start, and the tour after it. */
+@layer components {
+    .welcome-body { height: auto; min-height: 100dvh; overflow: auto; }
+    .welcome { max-width: 36rem; margin: 0 auto; padding: var(--space-7) var(--space-4); display: grid; gap: var(--space-4); }
+    .welcome .brand { font-size: var(--step-1); }
+    .welcome h1 { font-size: var(--step-2); letter-spacing: -0.02em; }
+    .welcome .small { font-size: var(--step--1); }
+    .steps { display: grid; gap: var(--space-1); padding-left: 1.4rem; color: var(--text-muted); font-size: var(--step--1); }
+    .steps .now { color: var(--text); }
+    .welcome-form .actions { justify-content: flex-end; }
+    .tour {
+        position: fixed;
+        right: var(--space-4);
+        bottom: var(--space-4);
+        z-index: 40;
+        max-width: 22rem;
+        display: grid;
+        gap: var(--space-2);
+        justify-items: start;
+        padding: var(--space-3) var(--space-4);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        border-top: 3px solid transparent;
+        background: var(--accent-gradient) border-box top / 100% 3px no-repeat, var(--surface) padding-box;
+        box-shadow: 0 12px 32px -8px oklch(0% 0 0 / 0.3);
+        font-size: var(--step--1);
+        line-height: 1.5;
+    }
+    .tour .btn { height: 1.6rem; font-size: 0.75rem; color: var(--text-muted); }
+}
+
+/* A vault whose folder is missing. */
+@layer components {
+    .missing { max-width: 36rem; margin: var(--space-7) auto; display: grid; gap: var(--space-3); }
+    .missing h1 { font-size: var(--step-2); }
+    .missing code { font-family: var(--font-mono); font-size: 0.85em; overflow-wrap: anywhere; }
+    .missing .actions { flex-wrap: wrap; }
+    .missing .btn .vdot { margin-right: var(--space-1); }
+}
+
+/* The right-click menu. */
+@layer components {
+    .ctxmenu {
+        position: fixed;
+        z-index: 50;
+        min-width: 11rem;
+        list-style: none;
+        padding: var(--space-1);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--surface);
+        box-shadow: 0 12px 32px -8px oklch(0% 0 0 / 0.3), 0 2px 6px oklch(0% 0 0 / 0.08);
+        font-size: var(--step--1);
+    }
+    .ctxmenu button {
+        width: 100%;
+        text-align: left;
+        padding: 0.3rem var(--space-2);
+        border: 0;
+        border-radius: 3px;
+        background: transparent;
+        color: var(--text);
+        cursor: pointer;
+    }
+    .ctxmenu button:hover, .ctxmenu button:focus-visible { background: var(--surface-sunken); outline: none; }
+}
+
+/* Vim's status line under the note: the mode, and the : commands typed. */
+.live .cm-editor .cm-vim-panel {
+    padding: 0.15rem var(--space-2);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    background: var(--surface-sunken);
+    border-top: 1px solid var(--border);
+}
+.live .cm-editor .cm-vim-panel input { font: inherit; color: var(--text); background: transparent; border: 0; outline: none; }
+
+/* On a phone nothing scrolls inside itself: the list, the note and the
+   editor are as tall as what is in them, and the page scrolls. Outside the
+   layers, to win over the sizes the wide layout gives them. */
+@media (max-width: 52rem) {
+    .main > .browse, .main > .editor { height: auto; min-height: 0; }
+    .browse #results, .hits, #results > .empty { height: auto; max-height: none; overflow: visible; }
+    #results > .empty { padding: var(--space-6) 0; }
+    .browse > .peek { flex: none; overflow: visible; }
+    /* Only the list; a note shows once it is opened. */
+    body:not(.focus) .browse > .peek { display: none; }
+    /* No sidebar to dim while writing: its veil and its faded top stay off. */
+    .side::after { display: none; }
+    body.dim .side-head { opacity: 1; }
+    .splitter, .listbar { display: none !important; }
+    .editor .live, .editor .cm-editor { flex: none; min-height: 12rem; }
+    .live .cm-editor .cm-scroller { overflow: visible; }
+}

@@ -1,0 +1,21 @@
+{{/* The note under the results, editable in place: app.js puts the editor
+     on .live with the text from .src. */}}
+{{/* Live shows the note rendered as it is written, Source the plain text. */}}
+{{define "rendermode"}}<div class="seg rendermode" role="group" aria-label="Rendering"><button type="button" data-render="live" title="Rendered as you write">Live</button><button type="button" data-render="source" title="Plain markdown, nothing rendered">Source</button></div>{{end}}
+
+{{define "peek"}}
+<header class="peek-head">
+  <button class="btn ghost peek-back" type="button" data-back title="Back to the list (Esc)" aria-label="Back to the list">←</button>
+  <h2 class="peek-title">{{.Title}}</h2>
+  <div class="peek-meta">
+    <span class="peek-path">{{.Path}}</span>
+    {{range .Tags}}<span class="chip small" style="--h:{{hue .}}">#{{.}}</span>{{end}}
+    <time title="{{datetime .Mod}}">{{ago .Mod}}</time>
+    <span class="peek-state"></span>
+    {{if not .Builtin}}{{template "rendermode"}}{{end}}
+  </div>
+</header>
+{{if .Builtin}}<div class="prose">{{md .}}</div>{{else}}
+<div class="live" data-path="{{.Path}}" data-dir="{{.Dir}}" data-mod="{{.Mod.UnixNano}}"></div>
+<textarea class="src" hidden>{{.Body}}</textarea>{{end}}
+{{end}}

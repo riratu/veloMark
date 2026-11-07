@@ -1,0 +1,27 @@
+{{define "main"}}{{with .Edit}}
+<form class="editor" method="post" action="/save" id="editor">
+  <div class="editor-head">
+    <label class="pathfield">
+      <span>Path</span>
+      <input name="path" value="{{.Path}}" placeholder="folder/note-name.md" required {{if .FocusPath}}autofocus{{end}} spellcheck="false">
+    </label>
+    <input type="hidden" name="orig" value="{{.Orig}}">
+    <input type="hidden" name="vault" value="{{$.Vault.Name}}">
+    <input type="hidden" name="mod" value="{{.Mod}}">
+    <div class="actions">
+      <span class="savestate" id="savestate" aria-live="polite"></span>
+      {{template "rendermode"}}
+      <a class="btn ghost" href="{{if .Orig}}/n/{{esc .Orig}}{{else}}/{{end}}" title="Close (Esc)">Close</a>
+      <button class="btn primary" type="submit" title="Save (Ctrl+S)">Save</button>
+    </div>
+  </div>
+  {{if .Error}}
+  <div class="alert">
+    {{.Error}}
+    {{if .Conflict}}<label><input type="checkbox" name="force" value="1"> overwrite anyway</label>{{end}}
+  </div>
+  {{end}}
+  <textarea name="body" id="body" hidden>{{.Body}}</textarea>
+  <div class="live" id="live" data-dir="{{dir .Path}}"{{if not .FocusPath}} data-focus{{end}}></div>
+</form>
+{{end}}{{end}}

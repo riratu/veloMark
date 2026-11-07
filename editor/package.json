@@ -1,0 +1,21 @@
+{
+  "name": "gonotes-editor",
+  "private": true,
+  "description": "The live markdown editor, bundled into ../web/static/editor.js",
+  "scripts": {
+    "build": "esbuild src/editor.js --bundle --minify --format=iife --target=es2020 --outfile=../web/static/editor.js"
+  },
+  "dependencies": {
+    "@codemirror/commands": "6.11.1",
+    "@codemirror/lang-markdown": "6.5.2",
+    "@codemirror/language": "6.13.1",
+    "@codemirror/state": "6.7.6",
+    "@codemirror/view": "6.43.15",
+    "@lezer/highlight": "1.2.5",
+    "@lezer/markdown": "1.8.1",
+    "@replit/codemirror-vim": "6.4.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}

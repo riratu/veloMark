@@ -1,0 +1,12 @@
+{{/* A vault whose folder is not there, like a drive not plugged in. */}}
+{{define "main"}}
+<div class="missing">
+  <h1>{{.Vault.Name}} is not there</h1>
+  <p>Its folder <code>{{.Vault.Dir}}</code> cannot be found. If it is on a drive, plug it in and this page opens the vault again.</p>
+  <p class="actions">
+    <a class="btn primary" href="/">Try again</a>
+    {{range .Vaults}}{{if ne .Name $.Vault.Name}}<a class="btn ghost" href="/vault/{{.Name}}"><i class="vdot" style="--g1:{{.Hue}};--g2:{{.Hue2}}"></i>{{.Name}}</a>{{end}}{{end}}
+    <a class="btn ghost" href="/vaults">Edit vaults…</a>
+  </p>
+</div>
+{{end}}

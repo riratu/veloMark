@@ -1,0 +1,35 @@
+{{define "main"}}
+<div class="browse">
+  {{template "searchbox" .}}
+  <div id="results"{{if .Open}} class="folded"{{end}}>{{template "results" .}}</div>
+  <div class="listbar" aria-live="polite">
+    <span><b>Full list</b> · <kbd>Enter</kbd> opens a note</span>
+    <button class="btn ghost" type="button" data-fulllist>Show the preview <kbd class="alt">Alt Enter</kbd></button>
+  </div>
+  <div class="splitter" role="separator" aria-orientation="horizontal" aria-label="Height of the list: drag, or ↑ ↓; double click or Alt+Enter for the whole page" tabindex="0"><button class="fulllist" type="button" data-fulllist="on" title="The list over the whole page">⤢ Full list <kbd class="alt">Alt Enter</kbd></button></div>
+  <section class="peek" id="peek">{{with .Peek}}{{template "peek" .}}{{end}}</section>
+</div>
+{{end}}
+
+{{define "results"}}
+{{if .Hits}}
+<ol class="hits">
+  {{range .Hits}}
+  <li><a class="hit" href="/n/{{esc .Path}}" draggable="true" data-path="{{.Path}}">
+    <span class="title">{{.Title}}</span>
+    <span class="snippet">{{.Snippet}}</span>
+    {{with .Dir}}<span class="folder" style="--h:{{hue .}}">{{.}}</span>{{end}}
+    <span class="tags">{{range .Tags}}<span class="chip small" style="--h:{{hue .}}">#{{.}}</span>{{end}}</span>
+    <span class="enterhint" aria-hidden="true"><kbd>Enter</kbd> open</span>
+    <time datetime="{{.Mod.Format "2006-01-02T15:04:05Z07:00"}}" title="{{datetime .Mod}}">{{ago .Mod}}</time>
+  </a></li>
+  {{end}}
+</ol>
+{{else}}
+<div class="empty">
+  {{if .Q.Raw}}<p>Nothing matches <strong>{{.Q.Raw}}</strong>.</p>
+  <form method="post" action="/new"><input type="hidden" name="from" value="{{.Q.Raw}}"><button class="btn primary" type="submit">Create {{with newTitle .Q.Raw}}“{{.}}”{{else}}a note{{end}}</button> <span class="muted">or press <kbd>Enter</kbd></span></form>
+  {{else}}<p>No notes yet.</p><form method="post" action="/new"><button class="btn primary" type="submit">Write the first one</button></form>{{end}}
+</div>
+{{end}}
+{{end}}

@@ -1,0 +1,36 @@
+{{/* The first start: no vault yet, so the one question is where the notes
+     are. The tour (app.js) takes it from there. */}}
+{{define "welcome"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Welcome · notes</title>
+<link rel="stylesheet" href="/static/style.css">
+<link rel="icon" href="/static/icon.svg">
+<link rel="manifest" href="/static/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+<meta name="theme-color" content="#111214">
+<script>try{const t=localStorage.getItem("theme");if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body class="welcome-body">
+<main class="welcome">
+  <a class="brand"><img src="/static/icon.svg" alt="">notes</a>
+  <h1>Where are your notes?</h1>
+  <p class="muted">Pick a folder of markdown notes, or an empty one to start in. gonotes works on the files in it as they are: nothing is copied or moved.</p>
+  <ol class="steps">
+    <li class="now"><b>Pick a vault</b>: the folder your notes are in</li>
+    <li>Type a name for a note and press <kbd>Enter</kbd> to write in it</li>
+    <li>Press <kbd>Delete</kbd> to delete a note again</li>
+  </ol>
+  <form class="vaultrow welcome-form" method="post" action="/welcome" style="--g1:258;--g2:300">
+    {{if .Error}}<div class="alert">{{.Error}}</div>{{end}}
+    {{template "folderfield" (row "new" .Row)}}
+    <label class="field"><span>Name</span><input name="name-new" value="{{.Row.Name}}" placeholder="the folder's name" spellcheck="false"></label>
+    <div class="actions"><button class="btn primary" type="submit">Start</button></div>
+  </form>
+  <p class="muted small">More vaults can be added later, under Options → Vaults.</p>
+</main>
+<script src="/static/app.js" defer></script>
+</body>
+</html>{{end}}
