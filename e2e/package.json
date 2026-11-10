@@ -1,0 +1,12 @@
+{
+  "name": "gonotes-e2e",
+  "private": true,
+  "type": "module",
+  "description": "Tests of gonotes in a browser: search, open, edit, move, delete, undo",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.0"
+  }
+}
