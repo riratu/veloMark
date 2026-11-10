@@ -192,3 +192,31 @@ func (v *Vault) revealPath(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+
+// openLink opens a web or mail link in the desktop's default browser or mail
+// program. The installed app's own window would otherwise keep it.
+func openLink(w http.ResponseWriter, r *http.Request) {
+	u, err := url.Parse(r.FormValue("url"))
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https" && u.Scheme != "mailto") {
+		http.Error(w, "only web and mail links open outside", http.StatusBadRequest)
+		return
+	}
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", u.String())
+	case "darwin":
+		cmd = exec.Command("open", u.String())
+	default:
+		cmd = exec.Command("xdg-open", u.String())
+		if _, err := exec.LookPath("xdg-open"); err != nil {
+			cmd = exec.Command("termux-open-url", u.String())
+		}
+	}
+	if err := cmd.Start(); err != nil {
+		http.Error(w, "no browser to open it in: "+err.Error(), http.StatusNotImplemented)
+		return
+	}
+	go cmd.Wait()
+	w.WriteHeader(http.StatusNoContent)
+}

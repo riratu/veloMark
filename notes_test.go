@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -80,6 +81,7 @@ func TestSearch(t *testing.T) {
 		"deploy":           {"work/deploy.md", "home/garden.md"}, // title hit ranks first
 		"deploy in:home":   {"home/garden.md"},
 		"pipeline in:work": {"work/deploy.md"}, // not work/old/run.md
+		"tomatoes in:/":    nil,                // home/garden.md is in a folder
 		"#ops":             {"work/deploy.md"},
 		"deploy -tomato":   {"work/deploy.md"},
 		`"exact phrase"`:   {"work/ideas.md"},
@@ -115,6 +117,12 @@ func TestToggle(t *testing.T) {
 	}
 	if got := q.Toggle("#y"); got != `foo in:work #x #y` {
 		t.Errorf("tags add up: %q", got)
+	}
+	if got := ParseQuery(`in:work`).Box(); got != `in:work ` {
+		t.Errorf("a space after a folder: %q", got)
+	}
+	if got := ParseQuery(`deploy`).Box(); got != `deploy` {
+		t.Errorf("none after a word: %q", got)
 	}
 	if got := q.Pick("in:work"); got != `foo in:work #x` {
 		t.Errorf("a picked folder stays picked: %q", got)
@@ -438,6 +446,46 @@ func TestVaults(t *testing.T) {
 	h.ServeHTTP(httptest.NewRecorder(), r)
 	if _, err := os.Stat(filepath.Join(work, "new.md")); err != nil {
 		t.Error("save goes to the vault the form names")
+	}
+}
+
+func TestMoveToVault(t *testing.T) {
+	home, work := t.TempDir(), t.TempDir()
+	write(t, home, "inbox/a.md", "# A\n")
+	write(t, home, "b.md", "# B\n")
+	write(t, work, "b.md", "# taken\n")
+	app := testApp(t, home, "job="+work)
+	h := app.routes()
+	move := func(from string, form url.Values) *httptest.ResponseRecorder {
+		r := httptest.NewRequest("POST", "http://127.0.0.1:8090/movevault", strings.NewReader(form.Encode()))
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		r.Header.Set("X-Vault", from)
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		return w
+	}
+	homeName := filepath.Base(home)
+	if w := move(homeName, url.Values{"path": {"inbox/a.md"}, "to": {"job"}}); w.Code != 200 || !strings.Contains(w.Body.String(), `"path":"a.md"`) {
+		t.Fatalf("move: %d %s", w.Code, w.Body)
+	}
+	if app.vaults[0].ix.Get("inbox/a.md") != nil || app.vaults[1].ix.Get("a.md") == nil {
+		t.Error("indexes not updated after the move")
+	}
+	if w := move(homeName, url.Values{"path": {"b.md"}, "to": {"job"}}); w.Code != http.StatusConflict {
+		t.Errorf("onto an existing name: %d", w.Code)
+	}
+	if w := move(homeName, url.Values{"path": {"b.md"}, "to": {homeName}}); w.Code != http.StatusBadRequest {
+		t.Errorf("into its own vault: %d", w.Code)
+	}
+	if w := move(homeName, url.Values{"path": {"b.md"}, "to": {"nope"}}); w.Code != http.StatusNotFound {
+		t.Errorf("into no vault: %d", w.Code)
+	}
+	// Undo: back into the folder it came from.
+	if w := move("job", url.Values{"path": {"a.md"}, "to": {homeName}, "dir": {"inbox"}}); w.Code != 200 {
+		t.Fatalf("back: %d %s", w.Code, w.Body)
+	}
+	if b, err := os.ReadFile(filepath.Join(home, "inbox/a.md")); err != nil || string(b) != "# A\n" {
+		t.Errorf("back in inbox: %q %v", b, err)
 	}
 }
 
@@ -923,6 +971,13 @@ func TestDeleteFolder(t *testing.T) {
 	if app.vaults[0].ix.Get("old/deeper/b.md") == nil {
 		t.Error("all of it is back")
 	}
+	write(t, dir, "old/deeper/scan.pdf", "%PDF")
+	if code, _ := post("/delete", url.Values{"path": {"old"}}); code != 409 {
+		t.Errorf("a folder with a file that is no note: %d, want 409", code)
+	}
+	if app.vaults[0].ix.Get("old/a.md") == nil {
+		t.Error("its notes went with it")
+	}
 }
 
 func TestDiscardEmpty(t *testing.T) {
@@ -989,5 +1044,92 @@ func TestInstallable(t *testing.T) {
 	h.ServeHTTP(w, httptest.NewRequest("GET", "http://127.0.0.1:8090/static/icon-512.png", nil))
 	if w.Code != 200 || w.Header().Get("Content-Type") != "image/png" {
 		t.Errorf("icon: %d %s", w.Code, w.Header().Get("Content-Type"))
+	}
+}
+
+func TestTagsFollowResults(t *testing.T) {
+	dir := t.TempDir()
+	write(t, dir, "a.md", "#install #debugging")
+	write(t, dir, "b.md", "#install")
+	write(t, dir, "c.md", "#open")
+	write(t, dir, "archive/d.md", "#old")
+	app := testApp(t, dir)
+	ix := app.vaults[0].ix
+	names := func(q Query) string {
+		var out []string
+		for _, c := range ix.TagCounts(q) {
+			out = append(out, fmt.Sprintf("%s:%d", c.Name, c.N))
+		}
+		return strings.Join(out, " ")
+	}
+	if got := names(ParseQuery("#install")); got != "install:2 debugging:1" {
+		t.Errorf("with a tag: %q", got)
+	}
+	q := ParseQuery("")
+	q.Exclude = []string{"archive"}
+	if got := names(q); strings.Contains(got, "old") {
+		t.Errorf("none from folders left out: %q", got)
+	}
+}
+
+func TestNothingHereButElsewhere(t *testing.T) {
+	dir := t.TempDir()
+	write(t, dir, "zz Archiv/2020/old.md", "#debugging")
+	app := testApp(t, dir)
+	app.vaults[0].exclude = []string{"zz Archiv"}
+	w := httptest.NewRecorder()
+	app.routes().ServeHTTP(w, httptest.NewRequest("GET", "http://127.0.0.1:8090/?q="+url.QueryEscape("#debugging"), nil))
+	b := w.Body.String()
+	if !strings.Contains(b, "Nothing matches") || !strings.Contains(b, "zz Archiv/2020") || !strings.Contains(b, "left out of searches") {
+		t.Errorf("says where it would match")
+	}
+	w = httptest.NewRecorder()
+	app.routes().ServeHTTP(w, httptest.NewRequest("GET", "http://127.0.0.1:8090/?q="+url.QueryEscape(`#debugging "in:zz Archiv/2020"`), nil))
+	if !strings.Contains(w.Body.String(), `data-path="zz Archiv/2020/old.md"`) {
+		t.Error("its link finds it")
+	}
+}
+
+func TestTopLevel(t *testing.T) {
+	dir := t.TempDir()
+	write(t, dir, "top.md", "plan")
+	write(t, dir, "work/deep.md", "plan")
+	app := testApp(t, dir)
+	hits, _ := app.vaults[0].ix.Search(ParseQuery("plan in:/"))
+	if len(hits) != 1 || hits[0].Path != "top.md" {
+		t.Errorf("only the top: %v", hits)
+	}
+	q := ParseQuery("plan in:/")
+	q.Sub = true
+	if hits, _ := app.vaults[0].ix.Search(q); len(hits) != 1 {
+		t.Errorf("not its folders, subfolders setting or not: %d", len(hits))
+	}
+	if n := app.vaults[0].ix.TopLevel(); n != 1 {
+		t.Errorf("top count %d", n)
+	}
+}
+
+func TestAttachmentFoldersHidden(t *testing.T) {
+	dir := t.TempDir()
+	write(t, dir, "trips/rome.md", "![x](media/x.png)")
+	write(t, dir, "trips/media/x.png", "png")
+	write(t, dir, "media/top.png", "png")
+	write(t, dir, "page_files/style.css", "css")
+	write(t, dir, "mixed/a.md", "a")
+	write(t, dir, "mixed/b.png", "png")
+	os.MkdirAll(filepath.Join(dir, "empty"), 0o755)
+	app := testApp(t, dir)
+	dirs, _ := app.vaults[0].ix.Facets(false)
+	var names []string
+	for _, d := range dirs {
+		names = append(names, d.Name)
+	}
+	if got := strings.Join(names, " "); got != "empty mixed trips" {
+		t.Errorf("folders %q", got)
+	}
+	w := httptest.NewRecorder()
+	app.routes().ServeHTTP(w, httptest.NewRequest("GET", "http://127.0.0.1:8090/n/trips/media/x.png", nil))
+	if w.Code != 200 {
+		t.Errorf("its images are still served: %d", w.Code)
 	}
 }

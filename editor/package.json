@@ -1,9 +1,11 @@
 {
   "name": "gonotes-editor",
   "private": true,
-  "description": "The live markdown editor, bundled into ../web/static/editor.js",
+  "description": "The code in the browser: the live markdown editor and the page, bundled into ../web/static/editor.js and app.js",
   "scripts": {
-    "build": "esbuild src/editor.js --bundle --minify --format=iife --target=es2020 --outfile=../web/static/editor.js"
+    "build": "npm run build:editor && npm run build:app",
+    "build:editor": "esbuild src/editor.js --bundle --minify --format=iife --target=es2020 --outfile=../web/static/editor.js",
+    "build:app": "esbuild src/app/main.js --bundle --format=iife --target=es2020 --sourcemap --sources-content=true --outfile=../web/static/app.js"
   },
   "dependencies": {
     "@codemirror/commands": "6.11.1",

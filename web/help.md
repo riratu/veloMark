@@ -14,6 +14,7 @@ list is shown underneath, ready to write in.
 | `"exact phrase"` | the phrase                                    |
 | `-draft`         | notes without the word                        |
 | `#ops`           | notes tagged `ops` (or `ops/…`)               |
+| `in:/`           | notes in the vault's own folder only (*Top level*) |
 | `in:work/infra`  | notes in that folder; below it too with *Folders include subfolders* (Options) |
 | `sort:title`     | sorted by title instead of relevance          |
 

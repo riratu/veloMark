@@ -3,11 +3,16 @@
 {{define "searchbox"}}
 <form class="search{{if .Open}} folded{{end}}" action="/" method="get" role="search">
   <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-  <input id="q" name="q" type="search" value="{{.Q.Raw}}" placeholder="Search, or type a title and press Enter to create   #tag  in:folder  -not" autocomplete="off" spellcheck="false"{{if .IsList}} autofocus{{end}}>
+  <input id="q" name="q" type="search" value="{{.Q.Box}}" placeholder="Search, or type a title and press Enter to create   #tag  in:folder  -not" autocomplete="off" spellcheck="false"{{if .IsList}} autofocus{{end}}>
   <kbd>Ctrl K</kbd>
   {{if not .IsList}}<div class="palette" id="palette" hidden></div>{{end}}
 </form>
 {{end}}
+
+{{/* The tags of the notes the list shows; a live search sends them anew. */}}
+{{define "tagchips"}}{{range .Tags}}{{$tok := print "#" .Name}}
+<a data-tok="{{$tok}}" class="chip{{if has $.Q $tok}} on{{end}}" style="--h:{{hue .Name}}" href="/?q={{toggle $.Q $tok}}">#{{.Name}} <span>{{.N}}</span></a>
+{{end}}{{end}}
 
 {{define "layout"}}<!doctype html>
 <html lang="en" style="--hue-accent:{{.Vault.Hue}};--hue-accent2:{{.Vault.Hue2}}">
@@ -36,7 +41,7 @@
         <button class="btn ghost" type="button" id="vault" title="Switch vault (Alt V)" aria-haspopup="menu" aria-expanded="false"><i class="vdot" style="--g1:{{.Vault.Hue}};--g2:{{.Vault.Hue2}}"></i><b>{{.Vault.Name}}</b> <span aria-hidden="true">▾</span></button>
         <ul class="vaultmenu" id="vaultmenu" role="menu" hidden>
           {{range $i, $v := .Vaults}}
-          <li role="none"><a role="menuitem" data-vault href="/vault/{{.Name}}"{{if eq .Name $.Vault.Name}} class="on" aria-current="true"{{end}}><kbd class="alt">Alt {{inc $i}}</kbd><i class="vdot" style="--g1:{{.Hue}};--g2:{{.Hue2}}"></i>{{.Name}} <span>{{.Count}}</span></a></li>
+          <li role="none"><a role="menuitem" data-vault="{{.Name}}" href="/vault/{{.Name}}"{{if eq .Name $.Vault.Name}} class="on" aria-current="true"{{end}}><kbd class="alt">Alt {{inc $i}}</kbd><i class="vdot" style="--g1:{{.Hue}};--g2:{{.Hue2}}"></i>{{.Name}} <span>{{.Count}}</span></a></li>
           {{end}}
           <li role="none" class="sep"><a role="menuitem" href="/vaults">Edit vaults…</a></li>
           <li role="none" class="hint"><kbd class="alt">Alt V</kbd> opens this menu from anywhere</li>
@@ -50,21 +55,16 @@
       <p class="kbdhint"><kbd>↑↓</kbd> pick · <kbd>Enter</kbd> open · <kbd>m</kbd> move note here · <kbd>→</kbd> <kbd>←</kbd> open, close · <kbd>Esc</kbd> back</p>
       <ul class="facets">
         <li><a data-tok="" href="/"{{if and .IsList (eq .Q.Raw "")}} class="on"{{end}}>All notes <span>{{.Total}}</span></a></li>
+        <li><a data-tok="in:/" href="/?q={{pick $.Q "in:/"}}"{{if has $.Q "in:/"}} class="on"{{end}} title="Only the notes in the vault's own folder, none in a folder of it">Top level <span>{{.Top}}</span></a></li>
         {{range .Dirs}}{{$tok := print "in:" .Name}}
         <li style="--d:{{depth .Name}}" data-dir="{{.Name}}"{{if $.Vault.IsExcluded .Name}} class="excluded" title="Left out of searches"{{end}}><a data-tok="{{$tok}}" data-dir="{{.Name}}" draggable="true" href="/?q={{pick $.Q $tok}}"{{if has $.Q $tok}} class="on"{{end}}><i class="dot" style="--h:{{hue .Name}}"></i>{{base .Name}} <span>{{.N}}</span></a></li>
         {{end}}
       </ul>
     </section>
-    {{if .Tags}}
-    <section data-section="tags">
+    <section data-section="tags"{{if not .Tags}} hidden{{end}}>
       <h2>Tags</h2>
-      <div class="tagcloud">
-        {{range .Tags}}{{$tok := print "#" .Name}}
-        <a data-tok="{{$tok}}" class="chip{{if has $.Q $tok}} on{{end}}" style="--h:{{hue .Name}}" href="/?q={{toggle $.Q $tok}}">#{{.Name}} <span>{{.N}}</span></a>
-        {{end}}
-      </div>
+      <div class="tagcloud">{{template "tagchips" .}}</div>
     </section>
-    {{end}}
     </div>
     <footer class="side-foot">
       <button class="btn ghost" type="button" id="options" aria-haspopup="true" aria-expanded="false" title="Options"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Options</button>

@@ -78,6 +78,7 @@ func (ix *Index) Fresh() {
 func (ix *Index) Refresh() error {
 	seen := map[string]bool{}
 	var dirs []string
+	hasNotes, hasFiles := map[string]bool{}, map[string]bool{}
 	type change struct {
 		rel  string
 		info fs.FileInfo
@@ -106,11 +107,23 @@ func (ix *Index) Refresh() error {
 			rel, _ := filepath.Rel(root, p)
 			dirs = append(dirs, filepath.ToSlash(rel))
 		}
-		if d.IsDir() || !isNote(name) {
+		if d.IsDir() {
 			return nil
 		}
 		rel, _ := filepath.Rel(root, p)
 		rel = filepath.ToSlash(rel)
+		// What each folder holds, its folders included: notes, or only other
+		// files, like the images in media/.
+		for f := parentDir(rel); f != ""; f = parentDir(f) {
+			if isNote(name) {
+				hasNotes[f] = true
+			} else {
+				hasFiles[f] = true
+			}
+		}
+		if !isNote(name) {
+			return nil
+		}
 		seen[rel] = true
 		info, err := d.Info()
 		if err != nil {
@@ -149,7 +162,15 @@ func (ix *Index) Refresh() error {
 	if ix.extra != nil && !seen[ix.extra.Path] {
 		ix.notes[ix.extra.Path] = ix.extra
 	}
-	ix.dirs = dirs
+	// A folder of attachments only (images in media/, a saved page's _files)
+	// is no place for notes and stays out of the list; an empty one, made
+	// to put notes in, is listed.
+	ix.dirs = ix.dirs[:0:0]
+	for _, d := range dirs {
+		if hasNotes[d] || !hasFiles[d] {
+			ix.dirs = append(ix.dirs, d)
+		}
+	}
 	ix.scanned = time.Now()
 	return nil
 }
@@ -168,6 +189,47 @@ type Count struct {
 }
 
 // Facets lists every folder (counting notes in subfolders too) and every tag.
+// TagCounts counts the tags of the notes q finds, so every tag offered
+// narrows the list to something: picked ones, and those that share a note
+// with them, outside folders left out of searches.
+func (ix *Index) TagCounts(q Query) []Count {
+	ix.mu.RLock()
+	defer ix.mu.RUnlock()
+	tc := map[string]int{}
+	for _, n := range ix.notes {
+		if _, ok := q.match(n); !ok {
+			continue
+		}
+		for _, t := range n.Tags {
+			tc[t]++
+		}
+	}
+	tags := make([]Count, 0, len(tc))
+	for k, v := range tc {
+		tags = append(tags, Count{k, v})
+	}
+	sort.Slice(tags, func(i, j int) bool {
+		if tags[i].N != tags[j].N {
+			return tags[i].N > tags[j].N
+		}
+		return tags[i].Name < tags[j].Name
+	})
+	return tags
+}
+
+// TopLevel counts the notes in the vault's own folder, the help note not.
+func (ix *Index) TopLevel() int {
+	ix.mu.RLock()
+	defer ix.mu.RUnlock()
+	n := 0
+	for _, note := range ix.notes {
+		if note.Dir() == "" && !note.Builtin {
+			n++
+		}
+	}
+	return n
+}
+
 func (ix *Index) Facets(sub bool) (dirs, tags []Count) {
 	ix.mu.RLock()
 	defer ix.mu.RUnlock()
@@ -218,7 +280,7 @@ func (ix *Index) Len() int {
 // Notes writes it, read as markdown all the same.
 func isNote(name string) bool {
 	ext := strings.ToLower(path.Ext(name))
-	return ext == ".md" || ext == ".txt"
+	return ext == ".md" || ext == ".txt" || ext == ".mdx"
 }
 
 func parentDir(d string) string {

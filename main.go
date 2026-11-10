@@ -120,6 +120,7 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("GET /vaults", a.in((*Vault).vaultsPage))
 	mux.HandleFunc("GET /browse", a.browse)
 	mux.HandleFunc("POST /pickdir", a.pickDir)
+	mux.HandleFunc("POST /openlink", openLink)
 	mux.HandleFunc("GET /welcome", a.welcome)
 	mux.HandleFunc("POST /welcome", a.firstVault)
 	mux.HandleFunc("POST /vaults", a.in((*Vault).saveVaults))
@@ -131,6 +132,7 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("POST /delete", a.in((*Vault).delete))
 	mux.HandleFunc("POST /discard", a.in((*Vault).discard))
 	mux.HandleFunc("POST /move", a.in((*Vault).move))
+	mux.HandleFunc("POST /movevault", a.in(a.moveToVault))
 	mux.HandleFunc("POST /mkdir", a.in((*Vault).mkdir))
 	mux.HandleFunc("POST /upload", a.in((*Vault).upload))
 	mux.HandleFunc("POST /reveal", a.in((*Vault).revealPath))
@@ -196,6 +198,7 @@ type page struct {
 	Dirs    []Count
 	Tags    []Count
 	Total   int
+	Top     int // notes in the vault's own folder, none in a folder of it
 	Version string
 	Vault   *Vault
 	Vaults  []*Vault
@@ -208,8 +211,11 @@ type page struct {
 	Edit     *editForm
 	Settings *vaultsForm
 	IsList   bool
-	Open     bool  // the note in Peek is open in place, the list folded away
-	Peek     *Note // the note under the results, to edit in place
+	// Elsewhere: when nothing matches, how many notes would in the folders
+	// left out of searches, each with the search that shows them.
+	Elsewhere []elsewhere
+	Open      bool  // the note in Peek is open in place, the list folded away
+	Peek      *Note // the note under the results, to edit in place
 }
 
 type editForm struct {
@@ -222,12 +228,13 @@ type editForm struct {
 func (v *Vault) base(r *http.Request, title string) *page {
 	v.ix.Fresh()
 	sub := subfolders(r)
-	dirs, tags := v.ix.Facets(sub)
+	dirs, _ := v.ix.Facets(sub)
 	q := ParseQuery(r.URL.Query().Get("q"))
 	q.Sub = sub
 	for _, e := range v.Excluded() {
 		q.Exclude = append(q.Exclude, strings.ToLower(e))
 	}
+	tags := v.ix.TagCounts(q)
 	return &page{
 		Title:   title,
 		Q:       q,
@@ -235,10 +242,40 @@ func (v *Vault) base(r *http.Request, title string) *page {
 		Dirs:    dirs,
 		Tags:    tags,
 		Total:   v.ix.Len(),
+		Top:     v.ix.TopLevel(),
 		Version: version,
 		Vault:   v,
 		Vaults:  v.app.all(),
 	}
+}
+
+type elsewhere struct {
+	Dir string
+	N   int
+	Q   string
+}
+
+// elsewhere counts what q finds in the folders left out of searches, by the
+// folder each note is in, so a search that finds nothing can say where it
+// would, and link to there.
+func (v *Vault) elsewhere(q Query) []elsewhere {
+	q.Exclude = nil
+	hits, _ := v.ix.Search(q)
+	counts := map[string]int{}
+	var order []string
+	for _, h := range hits {
+		if d := h.Dir(); v.IsExcluded(d) {
+			if counts[d] == 0 {
+				order = append(order, d)
+			}
+			counts[d]++
+		}
+	}
+	var out []elsewhere
+	for _, d := range order {
+		out = append(out, elsewhere{Dir: d, N: counts[d], Q: strings.TrimSpace(q.Raw + " " + quoteTok("in:"+d))})
+	}
+	return out
 }
 
 // subfolders is the setting that folders take in their subfolders, in counts
@@ -254,6 +291,9 @@ func (v *Vault) list(w http.ResponseWriter, r *http.Request) {
 		p.Title = p.Q.Raw + " · " + v.Label()
 	}
 	p.Hits, _ = v.ix.Search(p.Q)
+	if len(p.Hits) == 0 && p.Q.Raw != "" {
+		p.Elsewhere = v.elsewhere(p.Q)
+	}
 	p.IsList = true
 	if r.Header.Get("X-Partial") != "" {
 		render(w, "list", "results", p)
@@ -486,8 +526,9 @@ func (v *Vault) save(w http.ResponseWriter, r *http.Request) {
 }
 
 // delete moves the note into .trash rather than removing it, since a click or
-// a key is all it takes. Asked for JSON, it says where the note went, so the
-// page can offer to put it back.
+// a key is all it takes. A folder goes with its notes; one with any
+// other file in it, which the page never shows, is refused. Asked for JSON, it says where the note
+// went, so the page can offer to put it back.
 func (v *Vault) delete(w http.ResponseWriter, r *http.Request) {
 	rel, file, err := v.resolve(r.FormValue("path"))
 	if err != nil {
@@ -497,9 +538,16 @@ func (v *Vault) delete(w http.ResponseWriter, r *http.Request) {
 	if v.builtin(w, rel) {
 		return
 	}
-	if _, err := os.Stat(file); err != nil {
+	info, err := os.Stat(file)
+	if err != nil {
 		http.Error(w, rel+" is gone", http.StatusNotFound)
 		return
+	}
+	if info.IsDir() {
+		if other := firstOtherFile(file); other != "" {
+			http.Error(w, rel+" holds "+other+", which is no note; delete only folders of notes", http.StatusConflict)
+			return
+		}
 	}
 	trash := ".trash/" + rel + "." + time.Now().Format("20060102-150405.000")
 	dst := filepath.Join(v.dir, filepath.FromSlash(trash))
@@ -523,6 +571,21 @@ func (v *Vault) delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/?q="+url.QueryEscape(quoteTok("in:"+dir)), http.StatusSeeOther)
+}
+
+// firstOtherFile finds a file in the folder, or in a folder in it, that is
+// not a note: the page never shows such a file, so deleting the folder would
+// take it away unseen. "" when the folder holds notes only, or nothing.
+func firstOtherFile(dir string) string {
+	var found string
+	filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || isNote(p) {
+			return nil
+		}
+		found, _ = filepath.Rel(dir, p)
+		return fs.SkipAll
+	})
+	return filepath.ToSlash(found)
 }
 
 // discard removes a note that is empty, for a new note left without a word

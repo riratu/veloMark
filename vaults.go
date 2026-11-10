@@ -608,3 +608,83 @@ func (v *Vault) saveVaults(w http.ResponseWriter, r *http.Request) {
 	stay.remember(w)
 	http.Redirect(w, r, "/vaults?saved", http.StatusSeeOther)
 }
+
+// moveToVault moves a note into another vault: into dir there when given,
+// else into the folder its new notes go to. Vaults may be on different
+// drives, where a rename cannot go, so the note is then copied and removed.
+func (a *App) moveToVault(v *Vault, w http.ResponseWriter, r *http.Request) {
+	rel, file, err := v.resolve(r.FormValue("path"))
+	if err != nil || !isNote(rel) {
+		http.Error(w, "not a note", http.StatusBadRequest)
+		return
+	}
+	if v.builtin(w, rel) {
+		return
+	}
+	to := a.find(r.FormValue("to"))
+	if to == nil || to.Missing() {
+		http.Error(w, "no vault called "+r.FormValue("to"), http.StatusNotFound)
+		return
+	}
+	if to == v {
+		http.Error(w, rel+" is already in "+v.Name, http.StatusBadRequest)
+		return
+	}
+	dir := to.NewDir()
+	if r.Form.Has("dir") {
+		dir = strings.Trim(r.FormValue("dir"), "/")
+	}
+	dst := filepath.Base(file)
+	if dir != "" {
+		dst = dir + "/" + dst
+	}
+	dst, dstFile, err := to.resolve(dst)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if _, err := os.Stat(file); err != nil {
+		http.Error(w, rel+" is gone", http.StatusNotFound)
+		return
+	}
+	if _, err := os.Stat(dstFile); err == nil {
+		http.Error(w, dst+" already exists in "+to.Name, http.StatusConflict)
+		return
+	}
+	if err := os.MkdirAll(filepath.Dir(dstFile), 0o755); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := os.Rename(file, dstFile); err != nil {
+		if err := copyFile(file, dstFile); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if err := os.Remove(file); err != nil {
+			os.Remove(dstFile)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+	v.ix.Refresh()
+	to.ix.Refresh()
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"from": rel, "path": dst, "vault": to.Name})
+}
+
+// copyFile copies src to a new file dst, keeping its mode and time.
+func copyFile(src, dst string) error {
+	st, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(dst, data, st.Mode().Perm()); err != nil {
+		os.Remove(dst)
+		return err
+	}
+	return os.Chtimes(dst, st.ModTime(), st.ModTime())
+}

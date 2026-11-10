@@ -28,8 +28,10 @@
 {{else}}
 <div class="empty">
   {{if .Q.Raw}}<p>Nothing matches <strong>{{.Q.Raw}}</strong>.</p>
+  {{range .Elsewhere}}<p class="muted">{{.N}} note{{if ne .N 1}}s{{end}} match in <b>{{.Dir}}</b>, which is left out of searches: <a href="/?q={{.Q}}">show {{if eq .N 1}}it{{else}}them{{end}}</a></p>{{end}}
   <form method="post" action="/new"><input type="hidden" name="from" value="{{.Q.Raw}}"><button class="btn primary" type="submit">Create {{with newTitle .Q.Raw}}“{{.}}”{{else}}a note{{end}}</button> <span class="muted">or press <kbd>Enter</kbd></span></form>
   {{else}}<p>No notes yet.</p><form method="post" action="/new"><button class="btn primary" type="submit">Write the first one</button></form>{{end}}
 </div>
 {{end}}
+<template data-tags>{{template "tagchips" .}}</template>
 {{end}}

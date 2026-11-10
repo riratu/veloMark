@@ -769,6 +769,8 @@
         animation: toast 1.6s var(--ease) forwards;
     }
     .toast { display: flex; align-items: center; gap: var(--space-3); }
+    .toast.long { animation: toastlong 15s var(--ease) forwards; }
+    .toast:hover { animation-play-state: paused; }
     .toast button {
         border: 0;
         background: none;
@@ -814,7 +816,7 @@
         font-family: var(--font-mono);
         font-size: 0.75rem;
     }
-    .facets a.drop {
+    .facets a.drop, .vaultmenu a.drop {
         background: color-mix(in oklch, var(--accent) 22%, transparent);
         outline: 2px solid var(--accent) !important;
         color: var(--accent);
@@ -822,6 +824,7 @@
     .hit[draggable="true"]:active { cursor: grabbing; }
 
     @keyframes toast { 0% { opacity: 0; translate: -50% 8px; } 12%, 80% { opacity: 1; translate: -50% 0; } 100% { opacity: 0; } }
+    @keyframes toastlong { 0% { opacity: 0; translate: -50% 8px; } 1.5%, 96% { opacity: 1; translate: -50% 0; } 100% { opacity: 0; } }
 }
 
 /* Rendered markdown. */

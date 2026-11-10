@@ -31,7 +31,7 @@ func ParseQuery(raw string) Query {
 		case strings.HasPrefix(low, "#") && len(low) > 1:
 			q.Tags = append(q.Tags, low[1:])
 		case strings.HasPrefix(low, "in:") && len(low) > 3:
-			q.In = append(q.In, strings.Trim(low[3:], "/"))
+			q.In = append(q.In, strings.Trim(low[3:], "/")) // in:/ is "": the top level
 		case low == "sort:title":
 			q.ByTitle = true
 		case strings.HasPrefix(low, "-") && len(low) > 1:
@@ -108,6 +108,16 @@ func (q Query) Toggle(tok string) string {
 }
 
 func isFolderTok(t string) bool { return len(t) > 3 && strings.EqualFold(t[:3], "in:") }
+
+// Box is the query as the search box shows it: after a folder or a tag a
+// space, so what is typed next is a word of its own.
+func (q Query) Box() string {
+	toks := tokenize(q.Raw)
+	if n := len(toks); n > 0 && (isFolderTok(toks[n-1]) || strings.HasPrefix(toks[n-1], "#")) {
+		return strings.TrimRight(q.Raw, " ") + " "
+	}
+	return q.Raw
+}
 
 // Pick picks a folder: added when it is not picked yet, kept when it is.
 // Clicking the folder in view again leaves it in view; All notes lets go.
@@ -218,8 +228,15 @@ func (q Query) match(n *Note) (int, bool) {
 			return 0, false
 		}
 	}
-	// in:folder is that folder's own notes, or with Sub its subfolders' too.
+	// in:folder is that folder's own notes, or with Sub its subfolders' too;
+	// in:/ the vault's own folder's, never with its folders.
 	for _, d := range q.In {
+		if d == "" {
+			if dir != "" {
+				return 0, false
+			}
+			continue
+		}
 		if dir != d && !(q.Sub && strings.HasPrefix(dir, d+"/")) {
 			return 0, false
 		}
